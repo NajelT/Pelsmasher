@@ -1,0 +1,6 @@
+[Unit]
+Description=Pelsmasher Postgres backup
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pelsmasher-backup.sh

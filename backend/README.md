@@ -6,6 +6,7 @@ Spring Boot backend for the Pelsmasher app.
 
 ```bash
 cd /Users/iljalushpajev/Documents/Pelsmasher/backend
+docker compose up -d
 ./gradlew bootRun
 ```
 
@@ -42,24 +43,27 @@ curl http://127.0.0.1:8080/api/muscle-groups/chest/training-options
 
 ## Database
 
-Local development uses H2 file database:
+Local development uses PostgreSQL via Docker Compose:
 
-```text
-/Users/iljalushpajev/Documents/Pelsmasher/backend/data/pelsmasher.mv.db
+```bash
+cd /Users/iljalushpajev/Documents/Pelsmasher/backend
+docker compose up -d
 ```
 
-Open the browser:
+Default connection values:
 
 ```text
-http://127.0.0.1:8080/h2-console
+JDBC URL: jdbc:postgresql://127.0.0.1:5432/pelsmasher
+User Name: pelsmasher
+Password: pelsmasher
 ```
 
-Use these connection values:
+Override them with environment variables when needed:
 
 ```text
-JDBC URL: jdbc:h2:file:./data/pelsmasher;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
-User Name: sa
-Password:
+SPRING_DATASOURCE_URL
+SPRING_DATASOURCE_USERNAME
+SPRING_DATASOURCE_PASSWORD
 ```
 
 Useful tables:

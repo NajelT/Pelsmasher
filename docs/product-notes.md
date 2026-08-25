@@ -126,7 +126,7 @@ Current backend-owned analytics:
 
 ## Backend Direction
 
-The first Java backend lives in `backend/` and uses Spring Boot, Gradle, Spring Web, Spring Data JPA, and H2 for local development.
+The first Java backend lives in `backend/` and uses Spring Boot, Gradle, Spring Web, Spring Data JPA, and PostgreSQL (Flyway-managed schema).
 
 Current local API base URL:
 

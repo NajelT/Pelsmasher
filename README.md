@@ -57,7 +57,7 @@ Backend:
 - Gradle
 - Spring Web
 - Spring Data JPA
-- H2 for local development
+- PostgreSQL
 - BCrypt password hashing
 - Bearer-token auth
 
@@ -89,6 +89,7 @@ Start the backend:
 
 ```bash
 cd backend
+docker compose up -d
 ./gradlew bootRun
 ```
 
@@ -150,13 +151,22 @@ Completed workouts return persisted session data plus analytics, including total
 
 ## Local Data
 
-The backend uses an H2 file database for local development:
+The backend uses PostgreSQL. For local development, start the bundled database:
 
-```text
-backend/data/pelsmasher.mv.db
+```bash
+cd backend
+docker compose up -d
 ```
 
-That local database is ignored by git. The app can also fall back to local frontend data during MVP development, so the prototype stays usable while the backend evolves.
+Default local connection values:
+
+```text
+JDBC URL: jdbc:postgresql://127.0.0.1:5432/pelsmasher
+User Name: pelsmasher
+Password: pelsmasher
+```
+
+The Docker volume is ignored by git. The app can also fall back to local frontend data during MVP development, so the prototype stays usable while the backend evolves.
 
 ## Philosophy
 

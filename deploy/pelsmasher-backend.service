@@ -1,0 +1,16 @@
+[Unit]
+Description=Pelsmasher backend
+After=network.target
+
+[Service]
+User=pelsmasher
+Group=pelsmasher
+WorkingDirectory=/opt/pelsmasher/backend
+ExecStart=/usr/bin/java -jar /opt/pelsmasher/backend/pelsmasher-backend.jar
+Restart=always
+RestartSec=5
+
+EnvironmentFile=/etc/pelsmasher/backend.env
+
+[Install]
+WantedBy=multi-user.target
