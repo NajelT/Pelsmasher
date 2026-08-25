@@ -24,9 +24,9 @@ describe("auth screen", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "Log in" })).toBeTruthy();
-    expect(screen.getByPlaceholderText("Email")).toBeTruthy();
-    expect(screen.getByPlaceholderText("Password")).toBeTruthy();
-    expect(screen.queryByPlaceholderText("Repeat password")).toBeNull();
+    expect(screen.getByLabelText("Email")).toBeTruthy();
+    expect(screen.getByLabelText("Password")).toBeTruthy();
+    expect(screen.queryByLabelText("Repeat password")).toBeNull();
   });
 
   test("switches to registration mode and shows repeat password only there", async () => {
@@ -34,10 +34,10 @@ describe("auth screen", () => {
     const user = userEvent.setup();
 
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Register" }));
+    await user.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(screen.getByRole("heading", { name: "Register" })).toBeTruthy();
-    expect(screen.getByPlaceholderText("Repeat password")).toBeTruthy();
+    expect(screen.getByLabelText("Repeat password")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Log in" })).toBeTruthy();
   });
 
@@ -46,8 +46,8 @@ describe("auth screen", () => {
     const user = userEvent.setup();
 
     render(<App />);
-    await user.type(screen.getByPlaceholderText("Email"), "test@example.com");
-    await user.type(screen.getByPlaceholderText("Password"), "secret123");
+    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
     await waitFor(() => {
@@ -69,10 +69,10 @@ describe("auth screen", () => {
     const user = userEvent.setup();
 
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Register" }));
-    await user.type(screen.getByPlaceholderText("Email"), "test@example.com");
-    await user.type(screen.getByPlaceholderText("Password"), "secret123");
-    await user.type(screen.getByPlaceholderText("Repeat password"), "secret123");
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(screen.getByLabelText("Password"), "secret123");
+    await user.type(screen.getByLabelText("Repeat password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Register" }));
 
     await waitFor(() => {
@@ -94,10 +94,10 @@ describe("auth screen", () => {
     const user = userEvent.setup();
 
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Register" }));
-    await user.type(screen.getByPlaceholderText("Email"), "najel");
-    await user.type(screen.getByPlaceholderText("Password"), "secret123");
-    await user.type(screen.getByPlaceholderText("Repeat password"), "secret123");
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Email"), "najel");
+    await user.type(screen.getByLabelText("Password"), "secret123");
+    await user.type(screen.getByLabelText("Repeat password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Register" }));
 
     expect(await screen.findByText("Enter a valid email")).toBeTruthy();
@@ -109,8 +109,8 @@ describe("auth screen", () => {
     const user = userEvent.setup();
 
     render(<App />);
-    await user.type(screen.getByPlaceholderText("Email"), "test@example.com");
-    await user.type(screen.getByPlaceholderText("Password"), "secret123");
+    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(await screen.findByRole("heading", { name: "Choose workout" })).toBeTruthy();

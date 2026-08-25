@@ -51,39 +51,39 @@ public class SeedDataService implements ApplicationRunner {
             return;
         }
 
-        seedMuscle(userId, "chest", "Chest", MuscleKey.CHEST, "/assets/muscles/chest.png", List.of(
+        seedMuscle(userId, "chest", "Chest", MuscleKey.CHEST, null, List.of(
             new OptionSeed("Heavy Press", List.of("Bench Press", "Incline Press", "Dips")),
             new OptionSeed("Chest Volume", List.of("Dumbbell Press", "Cable Fly", "Push-Up"))
         ));
-        seedMuscle(userId, "back", "Back", MuscleKey.BACK, "/assets/muscles/back.png", List.of(
+        seedMuscle(userId, "back", "Back", MuscleKey.BACK, null, List.of(
             new OptionSeed("Heavy Pull", List.of("Deadlift", "Barbell Row", "Pull-Up")),
             new OptionSeed("Back Width", List.of("Lat Pulldown", "Seated Row", "Pullover"))
         ));
-        seedMuscle(userId, "shoulders", "Shoulders", MuscleKey.SHOULDERS, "/assets/muscles/shoulders.png", List.of(
+        seedMuscle(userId, "shoulders", "Shoulders", MuscleKey.SHOULDERS, null, List.of(
             new OptionSeed("Overhead Power", List.of("Overhead Press", "Arnold Press", "Lateral Raise")),
             new OptionSeed("Delt Volume", List.of("Lateral Raise", "Rear Delt Fly", "Face Pull"))
         ));
-        seedMuscle(userId, "biceps", "Biceps", MuscleKey.BICEPS, "/assets/muscles/biceps.png", List.of(
+        seedMuscle(userId, "biceps", "Biceps", MuscleKey.BICEPS, null, List.of(
             new OptionSeed("Curl Strength", List.of("Barbell Curl", "Hammer Curl", "Preacher Curl")),
             new OptionSeed("Biceps Pump", List.of("Cable Curl", "Incline Curl", "Concentration Curl"))
         ));
-        seedMuscle(userId, "triceps", "Triceps", MuscleKey.TRICEPS, "/assets/muscles/triceps.png", List.of(
+        seedMuscle(userId, "triceps", "Triceps", MuscleKey.TRICEPS, null, List.of(
             new OptionSeed("Lockout Strength", List.of("Close-Grip Bench", "Skullcrusher", "Pushdown")),
             new OptionSeed("Triceps Pump", List.of("Rope Pushdown", "Overhead Extension", "Dips"))
         ));
-        seedMuscle(userId, "forearms", "Forearms", MuscleKey.FOREARMS, "/assets/muscles/forearms.png", List.of(
+        seedMuscle(userId, "forearms", "Forearms", MuscleKey.FOREARMS, null, List.of(
             new OptionSeed("Grip Work", List.of("Wrist Curl", "Reverse Curl", "Farmer Hold")),
             new OptionSeed("Forearm Pump", List.of("Cable Wrist Curl", "Plate Pinch", "Dead Hang"))
         ));
-        seedMuscle(userId, "legs", "Legs", MuscleKey.LEGS, "/assets/muscles/legs.png", List.of(
+        seedMuscle(userId, "legs", "Legs", MuscleKey.LEGS, null, List.of(
             new OptionSeed("Heavy Legs", List.of("Squat", "Leg Press", "Romanian Deadlift")),
             new OptionSeed("Leg Volume", List.of("Hack Squat", "Leg Extension", "Leg Curl"))
         ));
-        seedMuscle(userId, "calves", "Calves", MuscleKey.CALVES, "/assets/muscles/calves.png", List.of(
+        seedMuscle(userId, "calves", "Calves", MuscleKey.CALVES, null, List.of(
             new OptionSeed("Calf Builder", List.of("Standing Calf Raise", "Seated Calf Raise")),
             new OptionSeed("Calf Burn", List.of("Leg Press Calf Raise", "Single-Leg Calf Raise"))
         ));
-        seedMuscle(userId, "abs", "Abs", MuscleKey.ABS, "/assets/muscles/abs.png", List.of(
+        seedMuscle(userId, "abs", "Abs", MuscleKey.ABS, null, List.of(
             new OptionSeed("Core Strength", List.of("Cable Crunch", "Hanging Leg Raise", "Plank")),
             new OptionSeed("Abs Volume", List.of("Crunch", "Reverse Crunch", "Ab Wheel"))
         ));

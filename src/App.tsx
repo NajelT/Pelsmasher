@@ -210,20 +210,6 @@ const workoutSetTemplatesByKey: Record<
   ]
 };
 
-const muscleAssetByKey: Record<MuscleKey, string> = {
-  chest: "/assets/muscles/chest.png",
-  back: "/assets/muscles/back.png",
-  shoulders: "/assets/muscles/shoulders.png",
-  biceps: "/assets/muscles/biceps.png",
-  triceps: "/assets/muscles/triceps.png",
-  legs: "/assets/muscles/legs.png",
-  abs: "/assets/muscles/abs.png",
-  forearms: "/assets/muscles/forearms.png",
-  calves: "/assets/muscles/calves.png",
-  glutes: "/assets/muscles/back.png",
-  custom: "/assets/muscles/chest.png"
-};
-
 function inferMuscleKey(name: string): MuscleKey {
   const value = name.trim().toLowerCase();
 
@@ -2285,60 +2271,76 @@ function App() {
   if (!authUser) {
     return (
       <main className="app-shell auth-shell">
-        <section className="top-bar auth-top-bar" aria-label="App header">
-          <p className="eyebrow">Pelsmasher</p>
-          <h1>{isRegisterMode ? "Register" : "Log in"}</h1>
-        </section>
+        <div className="auth-center">
+          <section className="auth-brand" aria-label="App header">
+            <h1 className="sr-only">{isRegisterMode ? "Register" : "Log in"}</h1>
+            <p className="auth-wordmark" aria-hidden="true">
+              PELSMASHER<span className="auth-wordmark-dot">.</span>
+            </p>
+            <p className="auth-tagline">STRENGTH LOG</p>
+          </section>
 
-        <section className="auth-panel auth-gate-panel" aria-label="Account">
-          <form
-            className="auth-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void (isRegisterMode ? handleRegister() : handleLogin());
-            }}
-          >
-            <input
-              aria-label="Email"
-              autoComplete="email"
-              inputMode="email"
-              placeholder="Email"
-              value={authEmail}
-              onChange={(event) => setAuthEmail(event.target.value)}
-            />
-            <input
-              aria-label="Password"
-              autoComplete="current-password"
-              placeholder="Password"
-              type="password"
-              value={authPassword}
-              onChange={(event) => setAuthPassword(event.target.value)}
-            />
-            {isRegisterMode ? (
-              <input
-                aria-label="Repeat password"
-                autoComplete="new-password"
-                placeholder="Repeat password"
-                type="password"
-                value={authRepeatPassword}
-                onChange={(event) => setAuthRepeatPassword(event.target.value)}
-              />
-            ) : null}
-            <div className="auth-actions">
-              <button type="submit">{isRegisterMode ? "Register" : "Log in"}</button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode(isRegisterMode ? "login" : "register");
-                  setAuthError("");
-                }}
-              >
-                {isRegisterMode ? "Log in" : "Register"}
-              </button>
-            </div>
-            {authError ? <p>{authError}</p> : null}
-          </form>
-        </section>
+          <section className="auth-panel auth-gate-panel" aria-label="Account">
+            <form
+              className="auth-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void (isRegisterMode ? handleRegister() : handleLogin());
+              }}
+            >
+              <label className="auth-field">
+                <span>Email</span>
+                <input
+                  aria-label="Email"
+                  autoComplete="email"
+                  inputMode="email"
+                  placeholder="you@gym.com"
+                  value={authEmail}
+                  onChange={(event) => setAuthEmail(event.target.value)}
+                />
+              </label>
+              <label className="auth-field">
+                <span>Password</span>
+                <input
+                  aria-label="Password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  type="password"
+                  value={authPassword}
+                  onChange={(event) => setAuthPassword(event.target.value)}
+                />
+              </label>
+              {isRegisterMode ? (
+                <label className="auth-field">
+                  <span>Repeat password</span>
+                  <input
+                    aria-label="Repeat password"
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    type="password"
+                    value={authRepeatPassword}
+                    onChange={(event) => setAuthRepeatPassword(event.target.value)}
+                  />
+                </label>
+              ) : null}
+              <div className="auth-actions">
+                <button type="submit">{isRegisterMode ? "Register" : "Log in"}</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode(isRegisterMode ? "login" : "register");
+                    setAuthError("");
+                  }}
+                >
+                  {isRegisterMode ? "Log in" : "Create account"}
+                </button>
+              </div>
+              {authError ? <p>{authError}</p> : null}
+            </form>
+          </section>
+        </div>
+
+        <p className="auth-footer-tagline">Log the truth. Come back stronger.</p>
       </main>
     );
   }
@@ -2357,17 +2359,24 @@ function App() {
     return (
       <main className="app-shell workout-summary-shell">
         <section className="top-bar" aria-label="Workout summary header">
-          <p className="eyebrow">Workout complete</p>
+          <p className="eyebrow">
+            Workout complete · {formatHistoryDateTime(workoutAnalytics.completedAt)}
+          </p>
           <h1>Results</h1>
         </section>
 
         <section className="workout-summary-panel">
           <div className="summary-title-row">
-            <div>
-              <span>{formatHistoryDateTime(workoutAnalytics.completedAt)}</span>
-              <h2>{workoutAnalytics.workoutSetName}</h2>
-            </div>
+            <h2>{workoutAnalytics.workoutSetName}</h2>
             <strong>{formatWorkoutElapsed(workoutAnalytics.durationSeconds)}</strong>
+          </div>
+
+          <div className="summary-hero">
+            <strong>
+              {workoutAnalytics.diff > 0 ? "+" : ""}
+              {formatVolume(workoutAnalytics.diff)}
+            </strong>
+            <span>Volume vs last session</span>
           </div>
 
           <div className="summary-metric-grid">
@@ -2474,8 +2483,6 @@ function App() {
   }
 
   if (selectedGroup) {
-    const selectedGroupImage =
-      selectedGroup.imageSrc ?? muscleAssetByKey[selectedGroup.muscleKey];
     const totalLoggedSets = Object.values(workoutLogs).reduce(
       (total, sets) => total + sets.length,
       0
@@ -2490,8 +2497,9 @@ function App() {
 
     if (activeWorkoutSet && selectedGroup.id === activeWorkoutGroupId) {
       if (activeExercise) {
-        const previousHistory =
-          activeExercise.history[activeExercise.history.length - 1];
+        const baselineSets = workoutBaselineSets[activeExercise.id] ?? [];
+        const previousSet =
+          baselineSets[activeExerciseLogs.length] ?? baselineSets[baselineSets.length - 1];
         const isResting = restRemainingSeconds > 0;
         const restProgress =
           ((restDurationSeconds - restRemainingSeconds) / restDurationSeconds) *
@@ -2499,7 +2507,10 @@ function App() {
 
         return (
           <main className={workoutShellClassName}>
-            <section className="top-bar screen-two-header" aria-label="Workout header">
+            <section
+              className="top-bar screen-two-header screen-two-header--recorder"
+              aria-label="Workout header"
+            >
               <button
                 className="back-button"
                 type="button"
@@ -2522,7 +2533,7 @@ function App() {
                 </div>
                 <div>
                   <span>Previous</span>
-                  <strong>{previousHistory?.summary ?? "No data"}</strong>
+                  <strong>{previousSet ? formatSetResult(previousSet) : "No data"}</strong>
                 </div>
               </div>
 
@@ -2621,7 +2632,10 @@ function App() {
 
       return (
         <main className={workoutShellClassName}>
-          <section className="top-bar screen-two-header" aria-label="Workout header">
+          <section
+            className="top-bar screen-two-header screen-two-header--workout"
+            aria-label="Workout header"
+          >
             <button
               className="back-button"
               type="button"
@@ -2631,7 +2645,7 @@ function App() {
               <ArrowLeft size={23} strokeWidth={3} />
             </button>
             <div>
-              <p className="eyebrow">Workout live</p>
+              <p className="eyebrow is-accent is-live">Live workout</p>
               <h1>{activeWorkoutSet.name}</h1>
             </div>
           </section>
@@ -2689,7 +2703,10 @@ function App() {
 
     return (
       <main className={shellClassName}>
-        <section className="top-bar screen-two-header" aria-label="App header">
+        <section
+          className="top-bar screen-two-header screen-two-header--options"
+          aria-label="App header"
+        >
           <button
             className="back-button"
             type="button"
@@ -2699,7 +2716,7 @@ function App() {
             <ArrowLeft size={23} strokeWidth={3} />
           </button>
           <div>
-            <p className="eyebrow">Pelsmasher</p>
+            <p className="eyebrow">Training options</p>
             <h1>{selectedGroup.name}</h1>
           </div>
         </section>
@@ -2736,7 +2753,6 @@ function App() {
                       setStartedWorkoutSetId(null);
                     }}
                   >
-                    <img alt="" className="routine-art" src={selectedGroupImage} />
                     <span className="routine-copy">
                       <strong>{workoutSet.name}</strong>
                       <span className="routine-meta">
@@ -3073,7 +3089,7 @@ function App() {
     <main className={shellClassName}>
       <section className="top-bar home-top-bar" aria-label="App header">
         <div>
-          <p className="eyebrow">Pelsmasher</p>
+          <p className="eyebrow is-accent">Pelsmasher</p>
           <h1>Choose workout</h1>
         </div>
         <button
@@ -3104,8 +3120,7 @@ function App() {
 
         <div className="muscle-grid">
           {muscleGroups.map((group) => {
-            const { id, name, muscleKey, imageSrc } = group;
-            const image = imageSrc ?? muscleAssetByKey[muscleKey];
+            const { id, name, imageSrc } = group;
 
             return (
               <div className="muscle-card-shell" key={id}>
@@ -3118,11 +3133,11 @@ function App() {
                     setSelectedWorkoutSetId(null);
                   }}
                 >
-                  <img
-                    alt=""
-                    className={`muscle-art${imageSrc ? " custom-photo" : ""}`}
-                    src={image}
-                  />
+                  {imageSrc ? (
+                    <img alt="" className="muscle-art custom-photo" src={imageSrc} />
+                  ) : (
+                    <div className="muscle-art-placeholder" aria-hidden="true" />
+                  )}
                   <strong>{name}</strong>
                 </button>
                 <button
@@ -3224,13 +3239,11 @@ function App() {
               />
 
               <div className="muscle-edit-preview">
-                <img
-                  alt=""
-                  src={
-                    editGroupImageSrc ??
-                    muscleAssetByKey[editingMuscleGroup.muscleKey]
-                  }
-                />
+                {editGroupImageSrc ? (
+                  <img alt="" src={editGroupImageSrc} />
+                ) : (
+                  <div className="routine-art-placeholder" aria-hidden="true" />
+                )}
                 <label className="photo-picker" aria-label="Change muscle group photo">
                   <ImagePlus size={22} strokeWidth={3} />
                   <input
