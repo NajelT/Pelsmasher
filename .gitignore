@@ -1,0 +1,9 @@
+node_modules/
+dist/
+backend/build/
+backend/.gradle/
+backend/data/
+.idea/
+.run/
+.DS_Store
+*.local
