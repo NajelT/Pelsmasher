@@ -134,10 +134,19 @@ public class TrainingOptionEntity {
         this.name = name;
     }
 
-    public void replaceExercises(List<ExerciseEntity> newExercises) {
+    public void replaceExercises(List<ExerciseSelection> newExercises) {
         exercises.clear();
         for (int index = 0; index < newExercises.size(); index++) {
-            exercises.add(new TrainingOptionExerciseEntity(this, newExercises.get(index), index));
+            ExerciseSelection selection = newExercises.get(index);
+            exercises.add(
+                new TrainingOptionExerciseEntity(this, selection.exercise(), index, selection.supersetGroup())
+            );
+        }
+    }
+
+    public record ExerciseSelection(ExerciseEntity exercise, Integer supersetGroup) {
+        public ExerciseSelection(ExerciseEntity exercise) {
+            this(exercise, null);
         }
     }
 

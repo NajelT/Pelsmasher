@@ -69,7 +69,8 @@ public final class ApiDtos {
 
     public record ExerciseResponse(
         String id,
-        String name
+        String name,
+        Integer supersetGroup
     ) {
     }
 
@@ -84,7 +85,8 @@ public final class ApiDtos {
     }
 
     public record ExerciseInput(
-        @NotBlank String name
+        @NotBlank String name,
+        Integer supersetGroup
     ) {
     }
 

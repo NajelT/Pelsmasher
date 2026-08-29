@@ -27,6 +27,7 @@ export type ApiMuscleGroup = {
 export type ApiExercise = {
   id: string;
   name: string;
+  supersetGroup?: number | null;
 };
 
 export type ApiTrainingOption = {
@@ -111,7 +112,7 @@ export type CreateMuscleGroupPayload = {
 export type UpdateMuscleGroupPayload = Partial<CreateMuscleGroupPayload>;
 
 export type SaveTrainingOptionPayload = {
-  exercises: Array<{ name: string }>;
+  exercises: Array<{ name: string; supersetGroup?: number | null }>;
   muscleGroupId: string;
   name: string;
 };

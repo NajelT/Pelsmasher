@@ -161,12 +161,13 @@ public class CatalogService {
             .orElseThrow(() -> new NotFoundException("Training option not found: " + id));
     }
 
-    private List<ExerciseEntity> resolveExercises(String userId, List<ExerciseInput> inputs) {
+    private List<TrainingOptionEntity.ExerciseSelection> resolveExercises(String userId, List<ExerciseInput> inputs) {
         return inputs.stream()
-            .map(ExerciseInput::name)
-            .filter(CatalogService::hasText)
-            .map(String::trim)
-            .map(name -> resolveExercise(userId, name))
+            .filter(input -> hasText(input.name()))
+            .map(input -> new TrainingOptionEntity.ExerciseSelection(
+                resolveExercise(userId, input.name().trim()),
+                input.supersetGroup()
+            ))
             .toList();
     }
 
@@ -189,7 +190,11 @@ public class CatalogService {
     private TrainingOptionResponse toTrainingOptionResponse(TrainingOptionEntity option) {
         List<ExerciseResponse> exerciseResponses = option.getExercises()
             .stream()
-            .map(item -> new ExerciseResponse(item.getExercise().getId(), item.getExercise().getName()))
+            .map(item -> new ExerciseResponse(
+                item.getExercise().getId(),
+                item.getExercise().getName(),
+                item.getSupersetGroup()
+            ))
             .toList();
 
         return new TrainingOptionResponse(

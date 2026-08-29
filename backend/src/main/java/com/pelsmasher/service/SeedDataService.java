@@ -111,7 +111,11 @@ public class SeedDataService implements ApplicationRunner {
                 seed.name(),
                 true
             );
-            option.replaceExercises(seed.exerciseNames().stream().map(exerciseName -> resolveExercise(userId, exerciseName)).toList());
+            option.replaceExercises(
+                seed.exerciseNames().stream()
+                    .map(exerciseName -> new TrainingOptionEntity.ExerciseSelection(resolveExercise(userId, exerciseName)))
+                    .toList()
+            );
             trainingOptions.save(option);
         }
     }

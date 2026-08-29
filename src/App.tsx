@@ -12,13 +12,16 @@ import {
   ArrowRight,
   Check,
   ImagePlus,
+  Link2,
   LogOut,
   MoreVertical,
   Pencil,
   Play,
   Plus,
+  Share2,
   Timer,
   Trash2,
+  Unlink2,
   X
 } from "lucide-react";
 import {
@@ -66,6 +69,12 @@ type Exercise = {
   id: string;
   name: string;
   history: WorkoutHistoryEntry[];
+  supersetGroup?: number | null;
+};
+
+type ExerciseDraft = {
+  name: string;
+  supersetGroup: number | null;
 };
 
 type WorkoutSet = {
@@ -252,7 +261,8 @@ function mapApiTrainingOption(option: ApiTrainingOption): WorkoutSet {
     exercises: option.exercises.map((exercise) => ({
       history: [],
       id: exercise.id,
-      name: exercise.name
+      name: exercise.name,
+      supersetGroup: exercise.supersetGroup ?? null
     })),
     history: [],
     id: option.id,
@@ -534,6 +544,34 @@ function formatSetResult(set: Pick<LoggedExerciseSet, "reps" | "weight">) {
   return `${formatMetricValue(set.weight)} x ${set.reps}`;
 }
 
+function buildExerciseDisplayLabels(
+  exercises: Array<Pick<Exercise, "supersetGroup">>
+): string[] {
+  const labels: string[] = [];
+  let roundNumber = 0;
+  let index = 0;
+
+  while (index < exercises.length) {
+    const group = exercises[index].supersetGroup;
+    roundNumber += 1;
+
+    if (group == null) {
+      labels.push(String(roundNumber));
+      index += 1;
+      continue;
+    }
+
+    let letterCode = 0;
+    while (index < exercises.length && exercises[index].supersetGroup === group) {
+      labels.push(`${roundNumber}${String.fromCharCode(65 + letterCode)}`);
+      letterCode += 1;
+      index += 1;
+    }
+  }
+
+  return labels;
+}
+
 function calculateSetVolume(set: Pick<LoggedExerciseSet, "reps" | "weight">) {
   return set.weight * set.reps;
 }
@@ -636,6 +674,26 @@ function buildWorkoutAnalytics(
     verdict,
     workoutSetName: workout.workoutSetName
   };
+}
+
+function buildWorkoutShareText(analytics: WorkoutAnalytics) {
+  const lines = [
+    `PELSMASHER · ${analytics.workoutSetName}`,
+    `${formatVolume(analytics.currentVolume)} total volume, ${analytics.currentSets} sets`,
+    analytics.previousVolume > 0
+      ? `${analytics.diff >= 0 ? "+" : ""}${formatVolume(analytics.diff)} vs last session`
+      : "First logged session for this option",
+    "",
+    analytics.verdict
+  ];
+
+  const topExercise = [...analytics.exercises].sort((a, b) => b.diff - a.diff)[0];
+
+  if (topExercise && topExercise.diff > 0) {
+    lines.push(`Best gain: ${topExercise.name} +${formatVolume(topExercise.diff)}`);
+  }
+
+  return lines.join("\n");
 }
 
 function buildBaselineSetsFromSession(
@@ -1185,7 +1243,8 @@ function App() {
   const [newGroupImageName, setNewGroupImageName] = useState("");
   const [newWorkoutSetName, setNewWorkoutSetName] = useState("");
   const [newExerciseName, setNewExerciseName] = useState("");
-  const [newWorkoutExercises, setNewWorkoutExercises] = useState<string[]>([]);
+  const [newWorkoutExercises, setNewWorkoutExercises] = useState<ExerciseDraft[]>([]);
+  const [selectedDraftNames, setSelectedDraftNames] = useState<string[]>([]);
   const [isOptionDialogOpen, setIsOptionDialogOpen] = useState(false);
   const [editingWorkoutSetId, setEditingWorkoutSetId] = useState<string | null>(
     null
@@ -1237,6 +1296,7 @@ function App() {
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0);
   const [workoutAnalytics, setWorkoutAnalytics] =
     useState<WorkoutAnalytics | null>(null);
+  const [shareStatus, setShareStatus] = useState("");
 
   async function handleAuthSuccess(response: ApiAuthResponse) {
     saveAuthToken(response.token);
@@ -1830,6 +1890,7 @@ function App() {
     setNewWorkoutSetName("");
     setNewExerciseName("");
     setNewWorkoutExercises([]);
+    setSelectedDraftNames([]);
     setEditingWorkoutSetId(null);
   }
 
@@ -1841,7 +1902,13 @@ function App() {
   function openEditOptionDialog(workoutSet: WorkoutSet) {
     setNewWorkoutSetName(workoutSet.name);
     setNewExerciseName("");
-    setNewWorkoutExercises(workoutSet.exercises.map((exercise) => exercise.name));
+    setNewWorkoutExercises(
+      workoutSet.exercises.map((exercise) => ({
+        name: exercise.name,
+        supersetGroup: exercise.supersetGroup ?? null
+      }))
+    );
+    setSelectedDraftNames([]);
     setEditingWorkoutSetId(workoutSet.id);
     setIsOptionDialogOpen(true);
   }
@@ -1962,6 +2029,28 @@ function App() {
     setStartedWorkoutSetId(null);
   }
 
+  async function handleShareWorkout(analytics: WorkoutAnalytics) {
+    const text = buildWorkoutShareText(analytics);
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text, title: "Pelsmasher workout" });
+      } catch {
+        // user cancelled the native share sheet, nothing to do
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareStatus("Copied to clipboard");
+    } catch {
+      setShareStatus("Could not share");
+    }
+
+    setTimeout(() => setShareStatus(""), 2500);
+  }
+
   function returnToActiveWorkout() {
     if (!activeWorkoutGroupId || !activeWorkoutSetId) return;
 
@@ -2002,8 +2091,30 @@ function App() {
     }));
     setLastLoggedExerciseId(activeExercise.id);
     setWeightValue((value) => clamp(value + 2.5, 0, 300));
+
+    const hasSupersetPartnerNext =
+      activeExercise.supersetGroup != null &&
+      nextExercise?.supersetGroup === activeExercise.supersetGroup;
+
+    if (hasSupersetPartnerNext && nextExercise) {
+      setRestEndsAt(null);
+      setRestRemainingSeconds(0);
+      openExerciseRecorder(nextExercise);
+      return;
+    }
+
     setRestRemainingSeconds(restDurationSeconds);
     setRestEndsAt(Date.now() + restDurationSeconds * 1000);
+
+    if (activeExercise.supersetGroup != null && activeWorkoutSet) {
+      const firstGroupMember = activeWorkoutSet.exercises.find(
+        (exercise) => exercise.supersetGroup === activeExercise.supersetGroup
+      );
+
+      if (firstGroupMember && firstGroupMember.id !== activeExercise.id) {
+        openExerciseRecorder(firstGroupMember);
+      }
+    }
   }
 
   function goToNextExercise() {
@@ -2028,34 +2139,84 @@ function App() {
     if (!name) return;
 
     const alreadyAdded = newWorkoutExercises.some(
-      (exercise) => exercise.toLowerCase() === name.toLowerCase()
+      (exercise) => exercise.name.toLowerCase() === name.toLowerCase()
     );
     if (alreadyAdded) {
       setNewExerciseName("");
       return;
     }
 
-    setNewWorkoutExercises((exercises) => [...exercises, name]);
+    setNewWorkoutExercises((exercises) => [
+      ...exercises,
+      { name, supersetGroup: null }
+    ]);
     setNewExerciseName("");
   }
 
   function handleRemoveExerciseDraft(name: string) {
     setNewWorkoutExercises((exercises) =>
-      exercises.filter((exercise) => exercise !== name)
+      exercises.filter((exercise) => exercise.name !== name)
+    );
+    setSelectedDraftNames((names) => names.filter((selected) => selected !== name));
+  }
+
+  function toggleDraftSelection(name: string) {
+    setSelectedDraftNames((names) =>
+      names.includes(name)
+        ? names.filter((selected) => selected !== name)
+        : [...names, name]
     );
   }
 
-  function buildExerciseNameDraft() {
+  function groupSelectedAsSuperset() {
+    if (selectedDraftNames.length < 2) return;
+
+    const nextGroup =
+      1 +
+      newWorkoutExercises.reduce(
+        (max, exercise) => Math.max(max, exercise.supersetGroup ?? 0),
+        0
+      );
+
+    setNewWorkoutExercises((exercises) => {
+      const firstSelectedIndex = exercises.findIndex((exercise) =>
+        selectedDraftNames.includes(exercise.name)
+      );
+      const rest = exercises.filter(
+        (exercise) => !selectedDraftNames.includes(exercise.name)
+      );
+      const insertAt = exercises
+        .slice(0, firstSelectedIndex)
+        .filter((exercise) => !selectedDraftNames.includes(exercise.name)).length;
+      const grouped = exercises
+        .filter((exercise) => selectedDraftNames.includes(exercise.name))
+        .map((exercise) => ({ ...exercise, supersetGroup: nextGroup }));
+
+      return [...rest.slice(0, insertAt), ...grouped, ...rest.slice(insertAt)];
+    });
+    setSelectedDraftNames([]);
+  }
+
+  function ungroupExerciseDraft(name: string) {
+    setNewWorkoutExercises((exercises) =>
+      exercises.map((exercise) =>
+        exercise.name === name ? { ...exercise, supersetGroup: null } : exercise
+      )
+    );
+  }
+
+  function buildExerciseNameDraft(): ExerciseDraft[] {
     return [
       ...newWorkoutExercises,
       ...newExerciseName
         .split(",")
         .map((exercise) => exercise.trim())
         .filter(Boolean)
+        .map((name) => ({ name, supersetGroup: null }) as ExerciseDraft)
     ].filter(
       (exercise, index, exercises) =>
         exercises.findIndex(
-          (candidate) => candidate.toLowerCase() === exercise.toLowerCase()
+          (candidate) => candidate.name.toLowerCase() === exercise.name.toLowerCase()
         ) === index
     );
   }
@@ -2090,12 +2251,15 @@ function App() {
       return;
     }
 
-    const exerciseNames = buildExerciseNameDraft();
-    if (exerciseNames.length === 0) return;
+    const exerciseDrafts = buildExerciseNameDraft();
+    if (exerciseDrafts.length === 0) return;
 
     if (apiStatus === "online") {
       const payload = {
-        exercises: exerciseNames.map((exerciseName) => ({ name: exerciseName })),
+        exercises: exerciseDrafts.map((exercise) => ({
+          name: exercise.name,
+          supersetGroup: exercise.supersetGroup
+        })),
         muscleGroupId: selectedGroup.id,
         name
       };
@@ -2148,15 +2312,19 @@ function App() {
       ? workoutSets.find((set) => set.id === editingWorkoutSetId)
       : null;
     const workoutSetId = editingWorkoutSetId ?? `workout-set-${Date.now()}`;
+    const baseExercises = buildExercisesWithHistory(
+      exerciseDrafts.map((exercise) => exercise.name),
+      workoutSetId,
+      existingEditedSet?.exercises
+    );
     const workoutSet: WorkoutSet = {
       id: workoutSetId,
       muscleGroupId: selectedGroup.id,
       name,
-      exercises: buildExercisesWithHistory(
-        exerciseNames,
-        workoutSetId,
-        existingEditedSet?.exercises
-      ),
+      exercises: baseExercises.map((exercise, index) => ({
+        ...exercise,
+        supersetGroup: exerciseDrafts[index]?.supersetGroup ?? null
+      })),
       history: existingEditedSet?.history ?? [],
       isDefault: existingEditedSet?.isDefault
     };
@@ -2358,12 +2526,23 @@ function App() {
 
     return (
       <main className="app-shell workout-summary-shell">
-        <section className="top-bar" aria-label="Workout summary header">
-          <p className="eyebrow">
-            Workout complete · {formatHistoryDateTime(workoutAnalytics.completedAt)}
-          </p>
-          <h1>Results</h1>
+        <section className="top-bar home-top-bar" aria-label="Workout summary header">
+          <div>
+            <p className="eyebrow">
+              Workout complete · {formatHistoryDateTime(workoutAnalytics.completedAt)}
+            </p>
+            <h1>Results</h1>
+          </div>
+          <button
+            className="logout-button"
+            type="button"
+            aria-label="Share workout"
+            onClick={() => void handleShareWorkout(workoutAnalytics)}
+          >
+            <Share2 size={20} strokeWidth={2.5} />
+          </button>
         </section>
+        {shareStatus ? <p className="share-status">{shareStatus}</p> : null}
 
         <section className="workout-summary-panel">
           <div className="summary-title-row">
@@ -2504,6 +2683,19 @@ function App() {
         const restProgress =
           ((restDurationSeconds - restRemainingSeconds) / restDurationSeconds) *
           100;
+        const hasSupersetPartnerNext =
+          activeExercise.supersetGroup != null &&
+          nextExercise?.supersetGroup === activeExercise.supersetGroup;
+        const firstGroupMember =
+          activeExercise.supersetGroup != null && activeWorkoutSet
+            ? activeWorkoutSet.exercises.find(
+                (exercise) => exercise.supersetGroup === activeExercise.supersetGroup
+              )
+            : undefined;
+        const isLastInSupersetRound =
+          !hasSupersetPartnerNext &&
+          Boolean(firstGroupMember) &&
+          firstGroupMember!.id !== activeExercise.id;
 
         return (
           <main className={workoutShellClassName}>
@@ -2536,6 +2728,16 @@ function App() {
                   <strong>{previousSet ? formatSetResult(previousSet) : "No data"}</strong>
                 </div>
               </div>
+
+              {hasSupersetPartnerNext ? (
+                <p className="superset-hint">
+                  Superset · no rest · next {nextExercise!.name}
+                </p>
+              ) : isLastInSupersetRound ? (
+                <p className="superset-hint">
+                  Superset · rest, then back to {firstGroupMember!.name}
+                </p>
+              ) : null}
 
               <div className="recorded-set-strip">
                 {activeExerciseLogs.length > 0 ? (
@@ -2630,6 +2832,10 @@ function App() {
         );
       }
 
+      const exerciseDisplayLabels = buildExerciseDisplayLabels(
+        activeWorkoutSet.exercises
+      );
+
       return (
         <main className={workoutShellClassName}>
           <section
@@ -2660,18 +2866,25 @@ function App() {
               {activeWorkoutSet.exercises.map((exercise, index) => {
                 const exerciseLogs = workoutLogs[exercise.id] ?? [];
                 const isFinished = finishedExerciseIds.includes(exercise.id);
+                const label = exerciseDisplayLabels[index] ?? String(index + 1);
+                const isGroupContinuation =
+                  exercise.supersetGroup != null &&
+                  activeWorkoutSet.exercises[index - 1]?.supersetGroup ===
+                    exercise.supersetGroup;
 
                 return (
                   <button
                     className={`workout-exercise-button${
                       isFinished ? " is-finished" : ""
+                    }${exercise.supersetGroup != null ? " is-linked" : ""}${
+                      isGroupContinuation ? " is-linked-continuation" : ""
                     }`}
                     key={exercise.id}
                     type="button"
                     onClick={() => openExerciseRecorder(exercise)}
                   >
                     <span className="exercise-index">
-                      {isFinished ? <Check size={21} strokeWidth={3} /> : index + 1}
+                      {isFinished ? <Check size={21} strokeWidth={3} /> : label}
                     </span>
                     <span>
                       <strong>{exercise.name}</strong>
@@ -3051,22 +3264,72 @@ function App() {
                 </div>
                 <div className="exercise-draft-list">
                   {newWorkoutExercises.length > 0 ? (
-                    newWorkoutExercises.map((exercise) => (
-                      <span key={exercise}>
-                        {exercise}
-                        <button
-                          type="button"
-                          aria-label={`Remove ${exercise}`}
-                          onClick={() => handleRemoveExerciseDraft(exercise)}
+                    newWorkoutExercises.map((exercise) => {
+                      const isSelected = selectedDraftNames.includes(exercise.name);
+                      const groupLetter = exercise.supersetGroup
+                        ? String.fromCharCode(
+                            65 +
+                              newWorkoutExercises
+                                .filter(
+                                  (candidate) =>
+                                    candidate.supersetGroup === exercise.supersetGroup
+                                )
+                                .findIndex((candidate) => candidate.name === exercise.name)
+                          )
+                        : null;
+
+                      return (
+                        <span
+                          key={exercise.name}
+                          className={`exercise-draft-chip${
+                            exercise.supersetGroup ? " is-grouped" : ""
+                          }${isSelected ? " is-selected" : ""}`}
                         >
-                          <X size={16} strokeWidth={3} />
-                        </button>
-                      </span>
-                    ))
+                          <button
+                            type="button"
+                            className="exercise-draft-select"
+                            aria-pressed={isSelected}
+                            aria-label={`Select ${exercise.name} for superset`}
+                            onClick={() => toggleDraftSelection(exercise.name)}
+                          >
+                            {groupLetter ? <b>{groupLetter}</b> : null}
+                            {exercise.name}
+                          </button>
+                          {exercise.supersetGroup ? (
+                            <button
+                              type="button"
+                              className="exercise-draft-unlink"
+                              aria-label={`Unlink ${exercise.name} from superset`}
+                              onClick={() => ungroupExerciseDraft(exercise.name)}
+                            >
+                              <Unlink2 size={14} strokeWidth={3} />
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="exercise-draft-remove"
+                            aria-label={`Remove ${exercise.name}`}
+                            onClick={() => handleRemoveExerciseDraft(exercise.name)}
+                          >
+                            <X size={16} strokeWidth={3} />
+                          </button>
+                        </span>
+                      );
+                    })
                   ) : (
                     <small>Add as many exercises as you need</small>
                   )}
                 </div>
+                {selectedDraftNames.length >= 2 ? (
+                  <button
+                    type="button"
+                    className="group-superset-button"
+                    onClick={groupSelectedAsSuperset}
+                  >
+                    <Link2 size={16} strokeWidth={3} />
+                    Link {selectedDraftNames.length} as superset
+                  </button>
+                ) : null}
                 <button
                   className="create-option-button"
                   type="submit"

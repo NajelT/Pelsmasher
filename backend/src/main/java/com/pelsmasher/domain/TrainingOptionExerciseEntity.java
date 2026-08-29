@@ -1,5 +1,6 @@
 package com.pelsmasher.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -26,13 +27,22 @@ public class TrainingOptionExerciseEntity {
 
     private int position;
 
+    @Column(name = "superset_group")
+    private Integer supersetGroup;
+
     protected TrainingOptionExerciseEntity() {
     }
 
-    public TrainingOptionExerciseEntity(TrainingOptionEntity trainingOption, ExerciseEntity exercise, int position) {
+    public TrainingOptionExerciseEntity(
+        TrainingOptionEntity trainingOption,
+        ExerciseEntity exercise,
+        int position,
+        Integer supersetGroup
+    ) {
         this.trainingOption = trainingOption;
         this.exercise = exercise;
         this.position = position;
+        this.supersetGroup = supersetGroup;
     }
 
     @PrePersist
@@ -52,5 +62,9 @@ public class TrainingOptionExerciseEntity {
 
     public int getPosition() {
         return position;
+    }
+
+    public Integer getSupersetGroup() {
+        return supersetGroup;
     }
 }
