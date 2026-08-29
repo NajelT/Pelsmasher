@@ -1,5 +1,6 @@
 server:
   port: 8080
+  forward-headers-strategy: framework
 
 spring:
   application:
@@ -25,3 +26,5 @@ app:
     allowed-origins:
       - http://127.0.0.1:5173
       - http://localhost:5173
+      - https://pelsmasher.fit
+      - https://www.pelsmasher.fit
