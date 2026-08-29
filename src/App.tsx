@@ -22,7 +22,8 @@ import {
   Timer,
   Trash2,
   Unlink2,
-  X
+  X,
+  Zap
 } from "lucide-react";
 import {
   ApiAuthResponse,
@@ -502,6 +503,28 @@ function formatRestTime(seconds: number) {
   const remainingSeconds = seconds % 60;
 
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+type SparkParticle = {
+  id: string;
+  angleDeg: number;
+  lengthPx: number;
+  durationS: number;
+  delayS: number;
+  hue: "white" | "acid" | "acid2";
+};
+
+const sparkHues: SparkParticle["hue"][] = ["white", "acid", "acid2"];
+
+function buildSparkParticles(count: number): SparkParticle[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `spark-${index}-${Math.random().toString(36).slice(2, 8)}`,
+    angleDeg: Math.random() * 360,
+    lengthPx: 5 + Math.random() * 13,
+    durationS: 0.3 + Math.random() * 0.45,
+    delayS: Math.random() * 0.4,
+    hue: sparkHues[Math.floor(Math.random() * sparkHues.length)]
+  }));
 }
 
 function formatWorkoutElapsed(seconds: number) {
@@ -1061,6 +1084,48 @@ function playPickerClick() {
   }
 }
 
+function playSmashCueSound() {
+  try {
+    const AudioContextConstructor =
+      window.AudioContext ??
+      (window as Window & { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+
+    if (!AudioContextConstructor) return;
+
+    pickerAudioContext ??= new AudioContextConstructor();
+    if (pickerAudioContext.state === "suspended") {
+      void pickerAudioContext.resume();
+    }
+
+    // A gentle two-note chime (G5 -> C6, a resolving fourth) — pleasant
+    // notification tone rather than a harsh buzz, distinct from the picker
+    // click.
+    [
+      { frequency: 784, offset: 0 },
+      { frequency: 1046.5, offset: 0.11 }
+    ].forEach(({ frequency, offset }) => {
+      const oscillator = pickerAudioContext!.createOscillator();
+      const gain = pickerAudioContext!.createGain();
+      const now = pickerAudioContext!.currentTime + offset;
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      oscillator.connect(gain);
+      gain.connect(pickerAudioContext!.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.36);
+    });
+
+    if (navigator.vibrate) navigator.vibrate([30, 30, 60]);
+  } catch {
+    // Audio feedback is progressive enhancement.
+  }
+}
+
 function snapMetricValue(value: number, min: number, max: number, step: number) {
   return clamp(Math.round(value / step) * step, min, max);
 }
@@ -1292,6 +1357,8 @@ function App() {
   const [finishedExerciseIds, setFinishedExerciseIds] = useState<string[]>([]);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [restRemainingSeconds, setRestRemainingSeconds] = useState(0);
+  const [smashCueActive, setSmashCueActive] = useState(false);
+  const restSparkParticles = useMemo(() => buildSparkParticles(22), [restEndsAt]);
   const [workoutStartedAt, setWorkoutStartedAt] = useState<number | null>(null);
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0);
   const [workoutAnalytics, setWorkoutAnalytics] =
@@ -1637,6 +1704,8 @@ function App() {
 
       if (remainingSeconds === 0) {
         setRestEndsAt(null);
+        setSmashCueActive(true);
+        playSmashCueSound();
       }
     }
 
@@ -1939,6 +2008,7 @@ function App() {
     setFinishedExerciseIds([]);
     setRestEndsAt(null);
     setRestRemainingSeconds(0);
+    setSmashCueActive(false);
     setWorkoutAnalytics(null);
   }
 
@@ -1955,6 +2025,7 @@ function App() {
     setFinishedExerciseIds([]);
     setRestEndsAt(null);
     setRestRemainingSeconds(0);
+    setSmashCueActive(false);
     setWorkoutStartedAt(null);
     setWorkoutElapsedSeconds(0);
   }
@@ -2072,6 +2143,7 @@ function App() {
     setActiveExerciseId(exercise.id);
     setWeightValue(lastLoggedSet?.weight ?? nextBaselineSet?.weight ?? 80);
     setRepValue(lastLoggedSet?.reps ?? nextBaselineSet?.reps ?? 8);
+    setSmashCueActive(false);
   }
 
   function logExerciseSet() {
@@ -2099,10 +2171,12 @@ function App() {
     if (hasSupersetPartnerNext && nextExercise) {
       setRestEndsAt(null);
       setRestRemainingSeconds(0);
+      setSmashCueActive(false);
       openExerciseRecorder(nextExercise);
       return;
     }
 
+    setSmashCueActive(false);
     setRestRemainingSeconds(restDurationSeconds);
     setRestEndsAt(Date.now() + restDurationSeconds * 1000);
 
@@ -2125,6 +2199,7 @@ function App() {
     );
     setRestEndsAt(null);
     setRestRemainingSeconds(0);
+    setSmashCueActive(false);
 
     if (nextExercise) {
       openExerciseRecorder(nextExercise);
@@ -2680,9 +2755,6 @@ function App() {
         const previousSet =
           baselineSets[activeExerciseLogs.length] ?? baselineSets[baselineSets.length - 1];
         const isResting = restRemainingSeconds > 0;
-        const restProgress =
-          ((restDurationSeconds - restRemainingSeconds) / restDurationSeconds) *
-          100;
         const hasSupersetPartnerNext =
           activeExercise.supersetGroup != null &&
           nextExercise?.supersetGroup === activeExercise.supersetGroup;
@@ -2758,8 +2830,39 @@ function App() {
                     <strong>{formatRestTime(restRemainingSeconds)}</strong>
                   </div>
                   <div className="rest-timer-bar" aria-hidden="true">
-                    <span style={{ width: `${restProgress}%` }} />
+                    <span
+                      key={restEndsAt}
+                      className="rest-timer-fill"
+                      style={{ animationDuration: `${restDurationSeconds}s` }}
+                    >
+                      <span className="spark-core" />
+                      <span className="spark-field">
+                        {restSparkParticles.map((particle) => (
+                          <span
+                            key={particle.id}
+                            className="spark-ray"
+                            style={{ transform: `rotate(${particle.angleDeg}deg)` }}
+                          >
+                            <span
+                              className={`spark-streak spark-streak--${particle.hue}`}
+                              style={{
+                                height: `${particle.lengthPx}px`,
+                                animationDuration: `${particle.durationS}s`,
+                                animationDelay: `${particle.delayS}s`
+                              }}
+                            />
+                          </span>
+                        ))}
+                      </span>
+                    </span>
                   </div>
+                </div>
+              ) : smashCueActive ? (
+                <div className="smash-cue" aria-live="assertive">
+                  <span className="smash-cue-inner">
+                    <Zap size={14} strokeWidth={3} aria-hidden="true" />
+                    <span>Next set waiting</span>
+                  </span>
                 </div>
               ) : null}
 

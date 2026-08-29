@@ -1816,21 +1816,227 @@ h1 {
 }
 
 .rest-timer-bar {
+  position: relative;
   flex: 1;
   height: 3px;
-  overflow: hidden;
+  overflow: visible;
   border: none;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
 }
 
-.rest-timer-bar span {
+.rest-timer-fill {
+  position: relative;
   display: block;
   height: 100%;
   border-radius: inherit;
   background: var(--acid);
   box-shadow: none;
-  transition: width 0.22s linear;
+  width: 0%;
+  animation-name: rest-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes rest-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/* PLS-7: a dense, erratic spark shower riding the leading edge of the
+   fill — many thin rays firing outward at random angles/lengths/timing
+   (Chidori-style crackle), not a handful of predictable pulsing dots. */
+.spark-core {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff, var(--acid-2) 45%, transparent 75%);
+  box-shadow: 0 0 8px 2px rgba(223, 255, 122, 0.85);
+  transform: translate(50%, -50%);
+  animation: spark-core-flicker 0.35s steps(1, end) infinite;
+  pointer-events: none;
+}
+
+.spark-field {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.spark-ray {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.spark-streak {
+  position: absolute;
+  bottom: 0;
+  left: -0.75px;
+  width: 1.5px;
+  border-radius: 999px;
+  transform-origin: bottom center;
+  animation-name: spark-streak-shoot;
+  animation-timing-function: steps(1, end);
+  animation-iteration-count: infinite;
+}
+
+.spark-streak--white {
+  background: linear-gradient(#fff, rgba(255, 255, 255, 0));
+}
+
+.spark-streak--acid {
+  background: linear-gradient(var(--acid), rgba(199, 255, 53, 0));
+}
+
+.spark-streak--acid2 {
+  background: linear-gradient(var(--acid-2), rgba(223, 255, 122, 0));
+}
+
+@keyframes spark-core-flicker {
+  0% {
+    transform: translate(50%, -50%) scale(1.5);
+    opacity: 1;
+    filter: brightness(2.2);
+  }
+  20% {
+    transform: translate(50%, -50%) scale(0.8);
+    opacity: 0.5;
+    filter: brightness(1);
+  }
+  40% {
+    transform: translate(50%, -50%) scale(1.6);
+    opacity: 1;
+    filter: brightness(2.5);
+  }
+  55% {
+    transform: translate(50%, -50%) scale(1);
+    opacity: 0.65;
+    filter: brightness(1.1);
+  }
+  75% {
+    transform: translate(50%, -50%) scale(1.4);
+    opacity: 1;
+    filter: brightness(2);
+  }
+  100% {
+    transform: translate(50%, -50%) scale(0.9);
+    opacity: 0.7;
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes spark-streak-shoot {
+  0% {
+    transform: scaleY(0.15);
+    opacity: 1;
+  }
+  25% {
+    transform: scaleY(0.55);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 0.9;
+  }
+  75% {
+    transform: scaleY(1);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spark-core,
+  .spark-streak {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.smash-cue {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0;
+  color: var(--acid);
+}
+
+.smash-cue-inner {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  animation: smash-cue-text-pulse 1s ease-in-out infinite;
+}
+
+.smash-cue span {
+  font: 800 12px var(--font-ui);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.smash-cue::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at 50% 35%,
+    rgba(199, 255, 53, 0.35),
+    rgba(199, 255, 53, 0) 65%
+  );
+  animation: smash-cue-flash 0.45s ease-out 3;
+  animation-fill-mode: forwards;
+}
+
+@keyframes smash-cue-flash {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes smash-cue-text-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .smash-cue-inner,
+  .smash-cue::before {
+    animation: none;
+  }
 }
 
 .set-value-display {
