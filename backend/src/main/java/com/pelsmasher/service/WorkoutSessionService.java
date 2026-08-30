@@ -8,6 +8,7 @@ import com.pelsmasher.api.ApiDtos.LoggedSetResponse;
 import com.pelsmasher.api.ApiDtos.WorkoutAnalyticsExerciseResponse;
 import com.pelsmasher.api.ApiDtos.WorkoutAnalyticsResponse;
 import com.pelsmasher.api.ApiDtos.WorkoutSessionResponse;
+import com.pelsmasher.api.ApiDtos.WorkoutSessionSummaryResponse;
 import com.pelsmasher.domain.ExerciseEntity;
 import com.pelsmasher.domain.LoggedSetEntity;
 import com.pelsmasher.domain.TrainingOptionEntity;
@@ -17,6 +18,7 @@ import com.pelsmasher.repository.LoggedSetRepository;
 import com.pelsmasher.repository.TrainingOptionRepository;
 import com.pelsmasher.repository.WorkoutSessionRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -110,6 +112,16 @@ public class WorkoutSessionService {
     }
 
     @Transactional(readOnly = true)
+    public List<WorkoutSessionSummaryResponse> listSessionsSince(Instant since) {
+        String userId = localUserService.ensureLocalUser().getId();
+
+        return workoutSessions.findByUserIdAndCompletedAtAfterOrderByCompletedAtDesc(userId, since)
+            .stream()
+            .map(this::toSummaryResponse)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<LoggedSetResponse> listExerciseHistory(String exerciseId) {
         return loggedSets.findTop20ByExerciseIdOrderByPerformedAtDesc(exerciseId)
             .stream()
@@ -135,6 +147,16 @@ public class WorkoutSessionService {
             session.getTotalSets(),
             sessionVolume(session),
             setResponses
+        );
+    }
+
+    private WorkoutSessionSummaryResponse toSummaryResponse(WorkoutSessionEntity session) {
+        return new WorkoutSessionSummaryResponse(
+            session.getId(),
+            session.getTrainingOptionName(),
+            session.getCompletedAt(),
+            session.getTotalSets(),
+            sessionVolume(session)
         );
     }
 

@@ -92,6 +92,14 @@ export type ApiCompleteWorkoutResponse = {
   session: ApiWorkoutSession;
 };
 
+export type ApiWorkoutSessionSummary = {
+  completedAt: string;
+  id: string;
+  totalSets: number;
+  totalVolume: number;
+  workoutSetName: string;
+};
+
 export type ApiAuthUser = {
   email: string;
   id: string;

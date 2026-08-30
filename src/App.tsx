@@ -10,7 +10,10 @@ import {
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   History,
   ImagePlus,
   Link2,
@@ -37,6 +40,7 @@ import {
   ApiMuscleKey,
   ApiTrainingOption,
   ApiWorkoutSession,
+  ApiWorkoutSessionSummary,
   apiBaseUrl,
   apiRequest,
   clearAuthToken,
@@ -1211,21 +1215,21 @@ function snapMetricValue(value: number, min: number, max: number, step: number) 
 
 function VerticalMetricPicker({
   label,
-  majorEvery,
   max,
   min,
   onChange,
   pixelsPerStep,
   step,
+  unit,
   value
 }: {
   label: string;
-  majorEvery: number;
   max: number;
   min: number;
   onChange: (value: number) => void;
   pixelsPerStep: number;
   step: number;
+  unit: string;
   value: number;
 }) {
   const ticks = useMemo(() => {
@@ -1332,9 +1336,11 @@ function VerticalMetricPicker({
     let velocity = initialVelocityStepsPerMs;
     let lastSnap = startSnap;
     let lastTimestamp: number | null = null;
-    // Higher friction = the flick settles sooner. Tuned to feel like an
-    // iOS picker wheel: a hard flick still spins for a bit, not forever.
-    const frictionPerMs = 0.0035;
+    // Higher friction = the flick settles sooner. Tuned so a genuinely fast,
+    // sharp flick glides through roughly 60-70 steps before settling, while
+    // a slow/controlled drag never reaches the fling threshold below and
+    // stays 1:1 with the finger.
+    const frictionPerMs = 0.0013;
 
     function frame(timestamp: number) {
       if (lastTimestamp === null) lastTimestamp = timestamp;
@@ -1396,7 +1402,11 @@ function VerticalMetricPicker({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
       >
-        <div className="vertical-cursor" aria-hidden="true" />
+        <div
+          className="vertical-cursor"
+          style={{ height: `${pixelsPerStep}px` }}
+          aria-hidden="true"
+        />
         <div
           className="vertical-strip"
           style={{
@@ -1405,22 +1415,22 @@ function VerticalMetricPicker({
           }}
         >
           {ticks.map((tickValue, index) => {
-            const isMajor =
-              Math.abs(tickValue / majorEvery - Math.round(tickValue / majorEvery)) <
-              0.001;
-            const isSelected = Math.abs(tickValue - value) < 0.001;
+            const distanceSteps = Math.round((tickValue - displayValue) / step);
+            const isSelected = distanceSteps === 0;
+            const fadeOpacity = Math.max(0.16, 1 - Math.abs(distanceSteps) * 0.26);
 
             return (
               <span
-                className={`vertical-tick${isMajor ? " is-major" : ""}${
-                  isSelected ? " is-selected" : ""
-                }`}
+                className={`vertical-row${isSelected ? " is-selected" : ""}`}
                 key={`${label}-${tickValue}`}
-                style={{ top: `${index * pixelsPerStep}px` }}
+                style={{
+                  height: `${pixelsPerStep}px`,
+                  opacity: isSelected ? 1 : fadeOpacity,
+                  top: `${index * pixelsPerStep}px`
+                }}
               >
-                {isMajor && !isSelected ? (
-                  <em>{formatMetricValue(tickValue)}</em>
-                ) : null}
+                <em>{formatMetricValue(tickValue)}</em>
+                {isSelected ? <small>{unit}</small> : null}
               </span>
             );
           })}
@@ -1428,6 +1438,232 @@ function VerticalMetricPicker({
       </div>
     </section>
   );
+}
+
+// ---- Progress calendar & trend helpers (PLS-26/27/28/29) ----
+
+export type DailyVolumeTotal = {
+  count: number;
+  volume: number;
+};
+
+export type CalendarDayCell = {
+  count: number;
+  date: Date;
+  dateKey: string;
+  inMonth: boolean;
+  isToday: boolean;
+  volume: number;
+};
+
+export type CalendarWeekRow = {
+  days: CalendarDayCell[];
+  totalCount: number;
+  totalVolume: number;
+};
+
+export type WeekComparison = {
+  currentCount: number;
+  currentVolume: number;
+  diffCount: number;
+  diffVolume: number;
+  previousCount: number;
+  previousVolume: number;
+  verdict: string;
+};
+
+export type TrendBucket = {
+  label: string;
+  volume: number;
+};
+
+export function localDateKey(value: string | Date) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+export function groupSessionsByDay(
+  sessions: Array<Pick<ApiWorkoutSessionSummary, "completedAt" | "totalVolume">>
+): Map<string, DailyVolumeTotal> {
+  const totals = new Map<string, DailyVolumeTotal>();
+
+  for (const session of sessions) {
+    const key = localDateKey(session.completedAt);
+    const existing = totals.get(key) ?? { count: 0, volume: 0 };
+    totals.set(key, {
+      count: existing.count + 1,
+      volume: existing.volume + session.totalVolume
+    });
+  }
+
+  return totals;
+}
+
+function startOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function startOfWeek(date: Date) {
+  const copy = startOfDay(date);
+  const mondayOffset = (copy.getDay() + 6) % 7;
+  copy.setDate(copy.getDate() - mondayOffset);
+  return copy;
+}
+
+function addDays(date: Date, amount: number) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + amount);
+  return copy;
+}
+
+export function addMonths(date: Date, amount: number) {
+  const copy = new Date(date);
+  copy.setMonth(copy.getMonth() + amount);
+  return copy;
+}
+
+export function startOfMonth(date: Date) {
+  return startOfDay(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+export function buildCalendarMonthGrid(
+  monthCursor: Date,
+  dailyTotals: Map<string, DailyVolumeTotal>,
+  today: Date = new Date()
+): CalendarWeekRow[] {
+  const monthStart = startOfMonth(monthCursor);
+  const monthEnd = startOfDay(
+    new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0)
+  );
+  const gridStart = startOfWeek(monthStart);
+  const gridEnd = startOfWeek(monthEnd);
+  const todayKey = localDateKey(today);
+  const weeks: CalendarWeekRow[] = [];
+
+  let weekCursor = gridStart;
+  while (weekCursor <= gridEnd) {
+    const days: CalendarDayCell[] = [];
+    let totalCount = 0;
+    let totalVolume = 0;
+
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(weekCursor, i);
+      const dateKey = localDateKey(date);
+      const totals = dailyTotals.get(dateKey) ?? { count: 0, volume: 0 };
+
+      days.push({
+        count: totals.count,
+        date,
+        dateKey,
+        inMonth: date.getMonth() === monthStart.getMonth(),
+        isToday: dateKey === todayKey,
+        volume: totals.volume
+      });
+      totalCount += totals.count;
+      totalVolume += totals.volume;
+    }
+
+    weeks.push({ days, totalCount, totalVolume });
+    weekCursor = addDays(weekCursor, 7);
+  }
+
+  return weeks;
+}
+
+export function buildWeekComparison(
+  dailyTotals: Map<string, DailyVolumeTotal>,
+  today: Date = new Date()
+): WeekComparison {
+  const currentWeekStart = startOfWeek(today);
+  const previousWeekStart = addDays(currentWeekStart, -7);
+
+  function sumWeek(weekStart: Date) {
+    let count = 0;
+    let volume = 0;
+    for (let i = 0; i < 7; i++) {
+      const totals = dailyTotals.get(localDateKey(addDays(weekStart, i)));
+      if (totals) {
+        count += totals.count;
+        volume += totals.volume;
+      }
+    }
+    return { count, volume };
+  }
+
+  const current = sumWeek(currentWeekStart);
+  const previous = sumWeek(previousWeekStart);
+  const diffVolume = current.volume - previous.volume;
+  const diffCount = current.count - previous.count;
+  const verdict =
+    previous.count === 0 && previous.volume === 0
+      ? "No workouts logged last week to compare against."
+      : diffVolume > 0
+        ? `Weekly volume up ${formatVolume(diffVolume)} vs last week.`
+        : diffVolume < 0
+          ? `Weekly volume down ${formatVolume(Math.abs(diffVolume))} vs last week.`
+          : "Weekly volume matched last week.";
+
+  return {
+    currentCount: current.count,
+    currentVolume: current.volume,
+    diffCount,
+    diffVolume,
+    previousCount: previous.count,
+    previousVolume: previous.volume,
+    verdict
+  };
+}
+
+export function buildTrendBuckets(
+  dailyTotals: Map<string, DailyVolumeTotal>,
+  mode: "month" | "quarter",
+  today: Date = new Date()
+): TrendBucket[] {
+  if (mode === "month") {
+    const bucketCount = 5;
+    const currentWeekStart = startOfWeek(today);
+    const buckets: TrendBucket[] = [];
+
+    for (let i = bucketCount - 1; i >= 0; i--) {
+      const weekStart = addDays(currentWeekStart, -7 * i);
+      let volume = 0;
+      for (let day = 0; day < 7; day++) {
+        volume += dailyTotals.get(localDateKey(addDays(weekStart, day)))?.volume ?? 0;
+      }
+      buckets.push({
+        label: i === 0 ? "This wk" : formatHistoryDate(weekStart.toISOString()),
+        volume
+      });
+    }
+
+    return buckets;
+  }
+
+  const bucketCount = 3;
+  const buckets: TrendBucket[] = [];
+
+  for (let i = bucketCount - 1; i >= 0; i--) {
+    const monthDate = addMonths(new Date(today.getFullYear(), today.getMonth(), 1), -i);
+    let volume = 0;
+    for (const [dateKey, totals] of dailyTotals) {
+      const [year, month] = dateKey.split("-").map(Number);
+      if (year === monthDate.getFullYear() && month - 1 === monthDate.getMonth()) {
+        volume += totals.volume;
+      }
+    }
+    buckets.push({
+      label: monthDate.toLocaleDateString([], { month: "short" }),
+      volume
+    });
+  }
+
+  return buckets;
 }
 
 function App() {
@@ -1531,6 +1767,50 @@ function App() {
     readWeightIncrementStep()
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProgressOpen, setIsProgressOpen] = useState(false);
+  const [isProgressLoading, setIsProgressLoading] = useState(false);
+  const [progressError, setProgressError] = useState("");
+  const [progressSessions, setProgressSessions] = useState<ApiWorkoutSessionSummary[]>([]);
+  const [progressMonthCursor, setProgressMonthCursor] = useState(() => startOfMonth(new Date()));
+  const [progressTrendMode, setProgressTrendMode] = useState<"month" | "quarter">("month");
+  const [progressSelectedDay, setProgressSelectedDay] = useState<CalendarDayCell | null>(null);
+  const progressRangeStart = useMemo(
+    () => addMonths(startOfMonth(new Date()), -2),
+    []
+  );
+  const progressDailyTotals = useMemo(
+    () => groupSessionsByDay(progressSessions),
+    [progressSessions]
+  );
+
+  async function openProgress() {
+    setIsProgressOpen(true);
+    setIsProgressLoading(true);
+    setProgressError("");
+
+    try {
+      const sessions = await apiRequest<ApiWorkoutSessionSummary[]>(
+        `/workout-sessions?since=${encodeURIComponent(progressRangeStart.toISOString())}`
+      );
+      setProgressSessions(sessions);
+    } catch (error) {
+      setProgressError(
+        error instanceof Error ? error.message : "Could not load progress"
+      );
+    } finally {
+      setIsProgressLoading(false);
+    }
+  }
+
+  function closeProgress() {
+    setIsProgressOpen(false);
+    setProgressSelectedDay(null);
+  }
+
+  function changeProgressMonth(delta: number) {
+    setProgressMonthCursor((previous) => addMonths(previous, delta));
+    setProgressSelectedDay(null);
+  }
 
   function toggleRestTimerEnabled() {
     setRestTimerEnabled((previousEnabled) => {
@@ -1586,6 +1866,8 @@ function App() {
     setSelectedWorkoutSetId(null);
     setWorkoutAnalytics(null);
     setIsSettingsOpen(false);
+    setIsProgressOpen(false);
+    setProgressSessions([]);
     await refreshMuscleGroups();
   }
 
@@ -1645,6 +1927,8 @@ function App() {
     setSelectedWorkoutSetId(null);
     setWorkoutAnalytics(null);
     setIsSettingsOpen(false);
+    setIsProgressOpen(false);
+    setProgressSessions([]);
   }
 
   const localAllMuscleGroups = useMemo(
@@ -3110,22 +3394,22 @@ function App() {
               <div className="vertical-picker-grid">
                 <VerticalMetricPicker
                   label="Weight"
-                  majorEvery={10}
                   max={300}
                   min={0}
                   onChange={setWeightValue}
-                  pixelsPerStep={18}
+                  pixelsPerStep={46}
                   step={2.5}
+                  unit="kg"
                   value={weightValue}
                 />
                 <VerticalMetricPicker
                   label="Reps"
-                  majorEvery={5}
                   max={30}
                   min={1}
                   onChange={setRepValue}
-                  pixelsPerStep={34}
+                  pixelsPerStep={46}
                   step={1}
+                  unit="reps"
                   value={repValue}
                 />
               </div>
@@ -3694,6 +3978,232 @@ function App() {
     );
   }
 
+  if (isProgressOpen) {
+    const calendarWeeks = buildCalendarMonthGrid(progressMonthCursor, progressDailyTotals);
+    const weekComparison = buildWeekComparison(progressDailyTotals);
+    const trendBuckets = buildTrendBuckets(progressDailyTotals, progressTrendMode);
+    const maxDayVolume = Math.max(
+      1,
+      ...Array.from(progressDailyTotals.values()).map((total) => total.volume)
+    );
+    const maxTrendVolume = Math.max(1, ...trendBuckets.map((bucket) => bucket.volume));
+    const monthLabel = progressMonthCursor.toLocaleDateString([], {
+      month: "long",
+      year: "numeric"
+    });
+    const canGoPrevMonth = progressMonthCursor > progressRangeStart;
+    const canGoNextMonth = progressMonthCursor < startOfMonth(new Date());
+    const chartWidth = 280;
+    const chartHeight = 96;
+    const chartPoints = trendBuckets.map((bucket, index) => {
+      const x =
+        trendBuckets.length > 1
+          ? (index / (trendBuckets.length - 1)) * chartWidth
+          : chartWidth / 2;
+      const y = chartHeight - (bucket.volume / maxTrendVolume) * (chartHeight - 16) - 8;
+      return { bucket, x, y };
+    });
+    const chartPath = chartPoints
+      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)},${point.y.toFixed(1)}`)
+      .join(" ");
+
+    return (
+      <main className={shellClassName}>
+        <section
+          className="top-bar screen-two-header screen-two-header--options"
+          aria-label="Progress header"
+        >
+          <button
+            className="back-button"
+            type="button"
+            aria-label="Back to home"
+            onClick={closeProgress}
+          >
+            <ArrowLeft size={23} strokeWidth={3} />
+          </button>
+          <div>
+            <p className="eyebrow">Analytics</p>
+            <h1>Progress</h1>
+          </div>
+        </section>
+
+        <section className="workout-panel progress-panel">
+          {isProgressLoading ? (
+            <p className="progress-status-line">Loading progress…</p>
+          ) : progressError ? (
+            <p className="progress-status-line is-error">{progressError}</p>
+          ) : progressSessions.length === 0 ? (
+            <p className="progress-status-line">
+              No workouts logged in the last few months yet — this fills in
+              as you train.
+            </p>
+          ) : (
+            <>
+              <div className="progress-week-card">
+                <div className="progress-week-row">
+                  <div>
+                    <small>This week</small>
+                    <strong>{formatVolume(weekComparison.currentVolume)}</strong>
+                    <span>
+                      {weekComparison.currentCount} workout
+                      {weekComparison.currentCount === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div>
+                    <small>Last week</small>
+                    <strong>{formatVolume(weekComparison.previousVolume)}</strong>
+                    <span>
+                      {weekComparison.previousCount} workout
+                      {weekComparison.previousCount === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                </div>
+                <p className="progress-verdict">{weekComparison.verdict}</p>
+              </div>
+
+              <div className="progress-calendar">
+                <div className="progress-calendar-nav">
+                  <button
+                    type="button"
+                    aria-label="Previous month"
+                    disabled={!canGoPrevMonth}
+                    onClick={() => changeProgressMonth(-1)}
+                  >
+                    <ChevronLeft size={18} strokeWidth={3} />
+                  </button>
+                  <strong>{monthLabel}</strong>
+                  <button
+                    type="button"
+                    aria-label="Next month"
+                    disabled={!canGoNextMonth}
+                    onClick={() => changeProgressMonth(1)}
+                  >
+                    <ChevronRight size={18} strokeWidth={3} />
+                  </button>
+                </div>
+                <div className="progress-calendar-weekday-row">
+                  {["M", "T", "W", "T", "F", "S", "S"].map((label, index) => (
+                    <span key={`weekday-${index}`}>{label}</span>
+                  ))}
+                  <span className="progress-calendar-week-label">Wk</span>
+                </div>
+                {calendarWeeks.map((week) => (
+                  <div className="progress-calendar-row" key={week.days[0].dateKey}>
+                    {week.days.map((day) => (
+                      <button
+                        key={day.dateKey}
+                        type="button"
+                        className={`progress-calendar-cell${
+                          day.inMonth ? "" : " is-outside"
+                        }${day.isToday ? " is-today" : ""}`}
+                        style={
+                          day.count > 0
+                            ? {
+                                backgroundColor: `rgba(199, 255, 53, ${(
+                                  0.16 +
+                                  0.68 * (day.volume / maxDayVolume)
+                                ).toFixed(2)})`
+                              }
+                            : undefined
+                        }
+                        disabled={day.count === 0}
+                        onClick={() => setProgressSelectedDay(day)}
+                      >
+                        {day.date.getDate()}
+                      </button>
+                    ))}
+                    <span className="progress-calendar-week-total">
+                      {week.totalCount}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {progressSelectedDay ? (
+                <div className="progress-day-popover" role="dialog" aria-label="Day summary">
+                  <button
+                    className="progress-day-popover-close"
+                    type="button"
+                    aria-label="Close"
+                    onClick={() => setProgressSelectedDay(null)}
+                  >
+                    <X size={16} strokeWidth={3} />
+                  </button>
+                  <strong>{formatHistoryDate(progressSelectedDay.date.toISOString())}</strong>
+                  <span>
+                    {progressSelectedDay.count} workout
+                    {progressSelectedDay.count === 1 ? "" : "s"} ·{" "}
+                    {formatVolume(progressSelectedDay.volume)}
+                  </span>
+                </div>
+              ) : null}
+
+              <div className="progress-trend">
+                <div className="progress-trend-header">
+                  <h2>Trend</h2>
+                  <div className="progress-trend-tabs" role="tablist">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={progressTrendMode === "month"}
+                      onClick={() => setProgressTrendMode("month")}
+                    >
+                      Month
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={progressTrendMode === "quarter"}
+                      onClick={() => setProgressTrendMode("quarter")}
+                    >
+                      Quarter
+                    </button>
+                  </div>
+                </div>
+                <svg
+                  className="progress-trend-chart"
+                  viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                  preserveAspectRatio="none"
+                >
+                  <path d={chartPath} fill="none" />
+                  {chartPoints.map((point) => (
+                    <circle key={point.bucket.label} cx={point.x} cy={point.y} r={3} />
+                  ))}
+                </svg>
+                <div className="progress-trend-labels">
+                  {trendBuckets.map((bucket, index) => {
+                    const previousVolume =
+                      index > 0 ? trendBuckets[index - 1].volume : null;
+                    const diff =
+                      previousVolume === null ? null : bucket.volume - previousVolume;
+
+                    return (
+                      <span
+                        className={`progress-trend-label${
+                          diff === null ? "" : diff > 0 ? " is-up" : diff < 0 ? " is-down" : ""
+                        }`}
+                        key={bucket.label}
+                      >
+                        <strong>{formatMetricValue(bucket.volume)}</strong>
+                        {diff === null ? null : (
+                          <small>
+                            ({diff > 0 ? "+" : ""}
+                            {formatMetricValue(diff)})
+                          </small>
+                        )}
+                        <em>{bucket.label}</em>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+      </main>
+    );
+  }
+
   if (isSettingsOpen) {
     return (
       <main className={shellClassName}>
@@ -3823,14 +4333,24 @@ function App() {
           </p>
           <h1>Choose workout</h1>
         </div>
-        <button
-          className="settings-button"
-          type="button"
-          aria-label="Open settings"
-          onClick={() => setIsSettingsOpen(true)}
-        >
-          <Settings size={22} strokeWidth={3} />
-        </button>
+        <div className="home-top-bar-actions">
+          <button
+            className="settings-button"
+            type="button"
+            aria-label="Open progress"
+            onClick={openProgress}
+          >
+            <CalendarDays size={22} strokeWidth={3} />
+          </button>
+          <button
+            className="settings-button"
+            type="button"
+            aria-label="Open settings"
+            onClick={() => setIsSettingsOpen(true)}
+          >
+            <Settings size={22} strokeWidth={3} />
+          </button>
+        </div>
       </section>
 
       {liveWorkoutBanner}

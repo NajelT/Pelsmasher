@@ -1,6 +1,7 @@
 package com.pelsmasher.repository;
 
 import com.pelsmasher.domain.WorkoutSessionEntity;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -12,6 +13,12 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSessionEn
     List<WorkoutSessionEntity> findTop20ByUserIdAndTrainingOptionIdOrderByCompletedAtDesc(
         String userId,
         String trainingOptionId
+    );
+
+    @EntityGraph(attributePaths = {"loggedSets"})
+    List<WorkoutSessionEntity> findByUserIdAndCompletedAtAfterOrderByCompletedAtDesc(
+        String userId,
+        Instant since
     );
 
     @EntityGraph(attributePaths = {"trainingOption", "loggedSets", "loggedSets.exercise"})

@@ -2203,7 +2203,7 @@ h1 {
 .vertical-track {
   position: relative;
   width: 100%;
-  height: 238px;
+  height: 230px;
   justify-self: center;
   overflow: hidden;
   border: 1px solid var(--stroke);
@@ -2239,56 +2239,55 @@ h1 {
 
 .vertical-cursor {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  width: auto;
+  left: 6px;
+  right: 6px;
   top: 50%;
-  height: 2px;
   transform: translateY(-50%);
   border-radius: 999px;
-  background: var(--acid);
-  box-shadow: 0 0 14px rgba(199, 255, 53, 0.5);
+  background: var(--panel-active);
+  border: 1px solid var(--stroke-strong);
+  pointer-events: none;
 }
 
-.vertical-tick {
+.vertical-row {
   position: absolute;
-  left: 24px;
-  width: 24px;
-  height: 1px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   transform: translate(0, -50%);
-  border-radius: 999px;
-  background: var(--stroke-strong);
+  color: var(--muted);
+  pointer-events: none;
+  transition: opacity 0.1s ease;
 }
 
-.vertical-tick.is-major {
-  width: 24px;
-  background: var(--stroke-strong);
-  box-shadow: none;
-}
-
-.vertical-tick.is-selected {
-  z-index: 1;
-  width: 24px;
-  height: 1px;
-  background: var(--stroke-strong);
-  box-shadow: none;
-}
-
-.vertical-tick em {
-  position: absolute;
-  left: 78px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--dim);
+.vertical-row em {
+  color: inherit;
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 20px;
   font-style: normal;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
-.vertical-tick.is-selected em {
+.vertical-row small {
   color: var(--ink);
+  font: 600 12px var(--font-ui);
+  letter-spacing: 0.5px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.vertical-row.is-selected {
+  color: var(--acid);
+}
+
+.vertical-row.is-selected em {
+  font-size: 27px;
+  font-weight: 700;
 }
 
 .recorder-actions {
@@ -2647,5 +2646,340 @@ h1 {
 
   .selected-option-dialog .download-history-button {
     width: 100%;
+  }
+}
+
+/* Progress calendar & trend (PLS-26/27/28/29) */
+
+.home-top-bar-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.progress-panel {
+  display: grid;
+  gap: 20px;
+  padding-bottom: 24px;
+}
+
+.progress-status-line {
+  color: var(--dim);
+  font: 500 13px var(--font-ui);
+  line-height: 1.5;
+  text-transform: none;
+  white-space: normal;
+}
+
+.progress-status-line.is-error {
+  color: var(--muscle);
+}
+
+.progress-week-card {
+  padding: 16px;
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.progress-week-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.progress-week-row small {
+  display: block;
+  color: var(--dim);
+  font: 500 11px var(--font-ui);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.progress-week-row strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--acid);
+  font: 600 22px var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-week-row span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font: 500 11px var(--font-ui);
+  text-transform: uppercase;
+}
+
+.progress-verdict {
+  margin: 14px 0 0;
+  color: var(--ink);
+  font: 500 13px var(--font-ui);
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.progress-calendar {
+  padding: 16px;
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.progress-calendar-nav {
+  display: grid;
+  grid-template-columns: 34px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.progress-calendar-nav strong {
+  color: var(--ink);
+  font: 600 15px var(--font-display);
+  letter-spacing: 0.5px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.progress-calendar-nav button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--stroke-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  box-shadow: none;
+  touch-action: manipulation;
+}
+
+.progress-calendar-nav button:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.progress-calendar-weekday-row,
+.progress-calendar-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr) 28px;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-calendar-weekday-row {
+  margin-bottom: 6px;
+}
+
+.progress-calendar-weekday-row span {
+  color: var(--dim);
+  font: 500 10px var(--font-ui);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.progress-calendar-week-label {
+  color: var(--dim);
+}
+
+.progress-calendar-row {
+  margin-bottom: 4px;
+}
+
+.progress-calendar-cell {
+  aspect-ratio: 1;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: 500 11px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
+  touch-action: manipulation;
+}
+
+.progress-calendar-cell.is-outside {
+  color: var(--dim);
+  opacity: 0.4;
+}
+
+.progress-calendar-cell.is-today {
+  border-color: var(--acid);
+}
+
+.progress-calendar-cell:disabled {
+  pointer-events: none;
+}
+
+.progress-calendar-cell:not(:disabled) {
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.progress-calendar-week-total {
+  color: var(--dim);
+  font: 600 11px var(--font-ui);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-day-popover {
+  position: relative;
+  padding: 14px 40px 14px 16px;
+  border: 1px solid var(--acid);
+  border-radius: 14px;
+  background: var(--panel-active);
+}
+
+.progress-day-popover strong {
+  display: block;
+  color: var(--ink);
+  font: 600 14px var(--font-display);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.progress-day-popover span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font: 500 12px var(--font-ui);
+}
+
+.progress-day-popover-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.progress-trend {
+  padding: 16px;
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.progress-trend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.progress-trend-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 600 16px var(--font-display);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.progress-trend-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 8px;
+}
+
+.progress-trend-tabs button {
+  width: auto;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: 600 11px var(--font-ui);
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.progress-trend-tabs button[aria-selected="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--app-bg-deep);
+}
+
+.progress-trend-chart {
+  width: 100%;
+  height: 96px;
+  overflow: visible;
+}
+
+.progress-trend-chart path {
+  stroke: var(--acid);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.progress-trend-chart circle {
+  fill: var(--acid);
+}
+
+.progress-trend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.progress-trend-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+
+.progress-trend-label strong {
+  color: var(--ink);
+  font: 700 12px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.progress-trend-label small {
+  color: var(--dim);
+  font: 600 9px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.progress-trend-label.is-up small {
+  color: var(--acid);
+}
+
+.progress-trend-label.is-down small {
+  color: var(--muscle);
+}
+
+.progress-trend-label em {
+  margin-top: 2px;
+  color: var(--dim);
+  font: 500 9px var(--font-ui);
+  font-style: normal;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+@media (max-width: 390px) {
+  .progress-week-row strong {
+    font-size: 19px;
   }
 }

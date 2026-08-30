@@ -191,4 +191,13 @@ public final class ApiDtos {
         WorkoutAnalyticsResponse analytics
     ) {
     }
+
+    public record WorkoutSessionSummaryResponse(
+        String id,
+        String workoutSetName,
+        Instant completedAt,
+        int totalSets,
+        BigDecimal totalVolume
+    ) {
+    }
 }
