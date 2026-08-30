@@ -1198,9 +1198,14 @@ h1 {
 
 .session-history-topline {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+.session-history-icon {
+  flex: none;
+  color: var(--dim);
 }
 
 .session-history-topline div {
@@ -1214,6 +1219,7 @@ h1 {
   color: var(--ink-hot);
   font-size: 0.94rem;
   font-weight: 950;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1223,6 +1229,7 @@ h1 {
   color: var(--acid-2);
   font-size: 0.68rem;
   font-weight: 950;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   text-transform: uppercase;
 }

@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  History,
   ImagePlus,
   Link2,
   LogOut,
@@ -3376,6 +3377,12 @@ function App() {
                                   {formatWorkoutElapsed(session.durationSeconds)}
                                 </span>
                               </div>
+                              <History
+                                className="session-history-icon"
+                                size={16}
+                                strokeWidth={2.5}
+                                aria-hidden="true"
+                              />
                             </div>
                             <div className="session-exercise-results">
                               {selectedWorkoutSet.exercises.map((exercise) => {
