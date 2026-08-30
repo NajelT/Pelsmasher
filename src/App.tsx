@@ -14,10 +14,12 @@ import {
   ImagePlus,
   Link2,
   LogOut,
+  Minus,
   MoreVertical,
   Pencil,
   Play,
   Plus,
+  Settings,
   Share2,
   Timer,
   Trash2,
@@ -145,7 +147,12 @@ type MuscleGroupOverride = Partial<
 type CountdownStep = 3 | 2 | 1 | "sauce" | null;
 type HistoryView = "compare" | "sessions";
 
-const restDurationSeconds = 90;
+const defaultRestDurationSeconds = 90;
+const minRestDurationSeconds = 10;
+const maxRestDurationSeconds = 120;
+const restDurationStepSeconds = 10;
+const restDurationSecondsStorageKey = "pelsmasher.restDurationSeconds";
+const restTimerEnabledStorageKey = "pelsmasher.restTimerEnabled";
 const customGroupsStorageKey = "pelsmasher.customMuscleGroups";
 const hiddenMuscleGroupsStorageKey = "pelsmasher.hiddenMuscleGroups";
 const muscleGroupOverridesStorageKey = "pelsmasher.muscleGroupOverrides";
@@ -455,6 +462,35 @@ function saveCustomWorkoutSets(workoutSets: WorkoutSet[]) {
 
 function saveArchivedWorkoutSetIds(ids: string[]) {
   window.localStorage.setItem(archivedWorkoutSetsStorageKey, JSON.stringify(ids));
+}
+
+function readRestDurationSeconds() {
+  try {
+    const stored = window.localStorage.getItem(restDurationSecondsStorageKey);
+    const parsed = stored ? Number(stored) : NaN;
+
+    return Number.isFinite(parsed)
+      ? clamp(parsed, minRestDurationSeconds, maxRestDurationSeconds)
+      : defaultRestDurationSeconds;
+  } catch {
+    return defaultRestDurationSeconds;
+  }
+}
+
+function saveRestDurationSeconds(seconds: number) {
+  window.localStorage.setItem(restDurationSecondsStorageKey, String(seconds));
+}
+
+function readRestTimerEnabled() {
+  try {
+    return window.localStorage.getItem(restTimerEnabledStorageKey) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function saveRestTimerEnabled(enabled: boolean) {
+  window.localStorage.setItem(restTimerEnabledStorageKey, String(enabled));
 }
 
 function resizeImage(file: File) {
@@ -1336,6 +1372,34 @@ function App() {
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [restRemainingSeconds, setRestRemainingSeconds] = useState(0);
   const [smashCueActive, setSmashCueActive] = useState(false);
+  const [restDurationSeconds, setRestDurationSeconds] = useState(() =>
+    readRestDurationSeconds()
+  );
+  const [restTimerEnabled, setRestTimerEnabled] = useState(() =>
+    readRestTimerEnabled()
+  );
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  function toggleRestTimerEnabled() {
+    setRestTimerEnabled((previousEnabled) => {
+      const nextEnabled = !previousEnabled;
+      saveRestTimerEnabled(nextEnabled);
+      return nextEnabled;
+    });
+  }
+
+  function adjustRestDurationSeconds(deltaSeconds: number) {
+    setRestDurationSeconds((previousSeconds) => {
+      const nextSeconds = clamp(
+        previousSeconds + deltaSeconds,
+        minRestDurationSeconds,
+        maxRestDurationSeconds
+      );
+
+      saveRestDurationSeconds(nextSeconds);
+      return nextSeconds;
+    });
+  }
   const [workoutStartedAt, setWorkoutStartedAt] = useState<number | null>(null);
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0);
   const [workoutAnalytics, setWorkoutAnalytics] =
@@ -2154,8 +2218,14 @@ function App() {
     }
 
     setSmashCueActive(false);
-    setRestRemainingSeconds(restDurationSeconds);
-    setRestEndsAt(Date.now() + restDurationSeconds * 1000);
+
+    if (restTimerEnabled) {
+      setRestRemainingSeconds(restDurationSeconds);
+      setRestEndsAt(Date.now() + restDurationSeconds * 1000);
+    } else {
+      setRestRemainingSeconds(0);
+      setRestEndsAt(null);
+    }
 
     if (activeExercise.supersetGroup != null && activeWorkoutSet) {
       const firstGroupMember = activeWorkoutSet.exercises.find(
@@ -3407,6 +3477,87 @@ function App() {
     );
   }
 
+  if (isSettingsOpen) {
+    return (
+      <main className={shellClassName}>
+        <section
+          className="top-bar screen-two-header screen-two-header--options"
+          aria-label="Settings header"
+        >
+          <button
+            className="back-button"
+            type="button"
+            aria-label="Back to home"
+            onClick={() => setIsSettingsOpen(false)}
+          >
+            <ArrowLeft size={23} strokeWidth={3} />
+          </button>
+          <div>
+            <p className="eyebrow">Configs</p>
+            <h1>Settings</h1>
+          </div>
+        </section>
+
+        <section className="workout-panel settings-panel">
+          <div className="settings-row">
+            <div>
+              <strong>Rest timer</strong>
+              <small>Countdown between sets</small>
+            </div>
+            <button
+              className="settings-toggle"
+              type="button"
+              role="switch"
+              aria-checked={restTimerEnabled}
+              aria-label="Rest timer"
+              onClick={toggleRestTimerEnabled}
+            />
+          </div>
+
+          <div className="settings-row">
+            <div>
+              <strong>Rest duration</strong>
+              <small>Time between sets</small>
+            </div>
+            <div
+              className={`settings-stepper${
+                restTimerEnabled ? "" : " is-disabled"
+              }`}
+            >
+              <button
+                type="button"
+                aria-label="Decrease rest duration"
+                disabled={
+                  !restTimerEnabled ||
+                  restDurationSeconds <= minRestDurationSeconds
+                }
+                onClick={() =>
+                  adjustRestDurationSeconds(-restDurationStepSeconds)
+                }
+              >
+                <Minus size={16} strokeWidth={3} />
+              </button>
+              <span>{formatRestTime(restDurationSeconds)}</span>
+              <button
+                type="button"
+                aria-label="Increase rest duration"
+                disabled={
+                  !restTimerEnabled ||
+                  restDurationSeconds >= maxRestDurationSeconds
+                }
+                onClick={() =>
+                  adjustRestDurationSeconds(restDurationStepSeconds)
+                }
+              >
+                <Plus size={16} strokeWidth={3} />
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className={shellClassName}>
       <section className="top-bar home-top-bar" aria-label="App header">
@@ -3414,14 +3565,24 @@ function App() {
           <p className="eyebrow is-accent">Pelsmasher</p>
           <h1>Choose workout</h1>
         </div>
-        <button
-          className="logout-button"
-          type="button"
-          aria-label="Log out"
-          onClick={handleLogout}
-        >
-          <LogOut size={22} strokeWidth={3} />
-        </button>
+        <div className="home-top-bar-actions">
+          <button
+            className="settings-button"
+            type="button"
+            aria-label="Open settings"
+            onClick={() => setIsSettingsOpen(true)}
+          >
+            <Settings size={22} strokeWidth={3} />
+          </button>
+          <button
+            className="logout-button"
+            type="button"
+            aria-label="Log out"
+            onClick={handleLogout}
+          >
+            <LogOut size={22} strokeWidth={3} />
+          </button>
+        </div>
       </section>
 
       {liveWorkoutBanner}
