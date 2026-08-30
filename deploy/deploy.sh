@@ -28,12 +28,18 @@ for command_name in npm ssh scp rsync; do
   fi
 done
 
-echo "1/4 Building frontend..."
+echo "1/6 Installing frontend deps..."
 npm ci
+
+echo "2/6 Checking + testing frontend (aborts deploy on failure)..."
+npm run typecheck
+npm test
+
+echo "3/6 Building frontend..."
 VITE_API_BASE_URL=/api npm run build
 
-echo "2/4 Building backend..."
-(cd backend && ./gradlew clean bootJar)
+echo "4/6 Testing + building backend (aborts deploy on test failure)..."
+(cd backend && ./gradlew clean test bootJar)
 JAR_FILE="$(find backend/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*plain*' | head -n 1)"
 
 if [[ -z "$JAR_FILE" ]]; then
@@ -50,11 +56,11 @@ SSH_OPTIONS=(
 )
 RSYNC_SSH_COMMAND="ssh -o ControlMaster=auto -o ControlPath=$SSH_CONTROL_PATH -o ControlPersist=10m"
 
-echo "3/4 Uploading frontend and backend..."
+echo "5/6 Uploading frontend and backend..."
 rsync -e "$RSYNC_SSH_COMMAND" -az --delete dist/ "$REMOTE:/var/www/pelsmasher/"
 scp "${SSH_OPTIONS[@]}" "$JAR_FILE" "$REMOTE:/opt/pelsmasher/backend/pelsmasher-backend.jar"
 
-echo "4/4 Restarting services and checking health..."
+echo "6/6 Restarting services and checking health..."
 ssh "${SSH_OPTIONS[@]}" "$REMOTE" '
   set -e
   sudo systemctl restart pelsmasher-backend

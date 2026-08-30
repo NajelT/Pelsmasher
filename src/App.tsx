@@ -3553,6 +3553,15 @@ function App() {
               </button>
             </div>
           </div>
+
+          <button
+            className="settings-logout-button"
+            type="button"
+            onClick={handleLogout}
+          >
+            <LogOut size={18} strokeWidth={3} />
+            Log out
+          </button>
         </section>
       </main>
     );
@@ -3565,24 +3574,14 @@ function App() {
           <p className="eyebrow is-accent">Pelsmasher</p>
           <h1>Choose workout</h1>
         </div>
-        <div className="home-top-bar-actions">
-          <button
-            className="settings-button"
-            type="button"
-            aria-label="Open settings"
-            onClick={() => setIsSettingsOpen(true)}
-          >
-            <Settings size={22} strokeWidth={3} />
-          </button>
-          <button
-            className="logout-button"
-            type="button"
-            aria-label="Log out"
-            onClick={handleLogout}
-          >
-            <LogOut size={22} strokeWidth={3} />
-          </button>
-        </div>
+        <button
+          className="settings-button"
+          type="button"
+          aria-label="Open settings"
+          onClick={() => setIsSettingsOpen(true)}
+        >
+          <Settings size={22} strokeWidth={3} />
+        </button>
       </section>
 
       {liveWorkoutBanner}

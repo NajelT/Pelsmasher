@@ -227,12 +227,6 @@ input {
   gap: 10px;
 }
 
-.home-top-bar-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
 .logout-button,
 .settings-button {
   width: 40px;
@@ -378,6 +372,32 @@ input {
 .settings-toggle:focus-visible {
   outline: 3px solid rgba(199, 255, 53, 0.85);
   outline-offset: 3px;
+}
+
+.settings-logout-button {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 77, 94, 0.35);
+  border-radius: 16px;
+  background: none;
+  color: var(--muscle);
+  font: 600 15px var(--font-display);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  box-shadow: none;
+  touch-action: manipulation;
+}
+
+.settings-logout-button:active {
+  transform: none;
+  border-color: var(--muscle);
+  box-shadow: none;
+  opacity: 0.85;
 }
 
 .screen-two-header {

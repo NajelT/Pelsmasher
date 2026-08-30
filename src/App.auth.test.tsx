@@ -104,7 +104,7 @@ describe("auth screen", () => {
     expect(findFetchCall(fetchMock, "/auth/register")).toBeUndefined();
   });
 
-  test("shows logout button on the main screen after login", async () => {
+  test("shows logout button on the settings screen after login", async () => {
     mockApi();
     const user = userEvent.setup();
 
@@ -114,6 +114,9 @@ describe("auth screen", () => {
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(await screen.findByRole("heading", { name: "Choose workout" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+
+    expect(await screen.findByRole("heading", { name: "Settings" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Log out" })).toBeTruthy();
   });
 });
