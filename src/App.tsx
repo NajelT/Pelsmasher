@@ -154,6 +154,11 @@ const maxRestDurationSeconds = 120;
 const restDurationStepSeconds = 10;
 const restDurationSecondsStorageKey = "pelsmasher.restDurationSeconds";
 const restTimerEnabledStorageKey = "pelsmasher.restTimerEnabled";
+const defaultWeightIncrementStep = 2.5;
+const minWeightIncrementStep = 0.5;
+const maxWeightIncrementStep = 10;
+const weightIncrementStepAmount = 0.5;
+const weightIncrementStepStorageKey = "pelsmasher.weightIncrementStep";
 const customGroupsStorageKey = "pelsmasher.customMuscleGroups";
 const hiddenMuscleGroupsStorageKey = "pelsmasher.hiddenMuscleGroups";
 const muscleGroupOverridesStorageKey = "pelsmasher.muscleGroupOverrides";
@@ -492,6 +497,23 @@ function readRestTimerEnabled() {
 
 function saveRestTimerEnabled(enabled: boolean) {
   window.localStorage.setItem(restTimerEnabledStorageKey, String(enabled));
+}
+
+function readWeightIncrementStep() {
+  try {
+    const stored = window.localStorage.getItem(weightIncrementStepStorageKey);
+    const parsed = stored ? Number(stored) : NaN;
+
+    return Number.isFinite(parsed)
+      ? clamp(parsed, minWeightIncrementStep, maxWeightIncrementStep)
+      : defaultWeightIncrementStep;
+  } catch {
+    return defaultWeightIncrementStep;
+  }
+}
+
+function saveWeightIncrementStep(step: number) {
+  window.localStorage.setItem(weightIncrementStepStorageKey, String(step));
 }
 
 function resizeImage(file: File) {
@@ -1422,6 +1444,9 @@ function App() {
   const [restTimerEnabled, setRestTimerEnabled] = useState(() =>
     readRestTimerEnabled()
   );
+  const [weightIncrementStep, setWeightIncrementStep] = useState(() =>
+    readWeightIncrementStep()
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   function toggleRestTimerEnabled() {
@@ -1442,6 +1467,19 @@ function App() {
 
       saveRestDurationSeconds(nextSeconds);
       return nextSeconds;
+    });
+  }
+
+  function adjustWeightIncrementStep(delta: number) {
+    setWeightIncrementStep((previousStep) => {
+      const nextStep = clamp(
+        previousStep + delta,
+        minWeightIncrementStep,
+        maxWeightIncrementStep
+      );
+
+      saveWeightIncrementStep(nextStep);
+      return nextStep;
     });
   }
   const [workoutStartedAt, setWorkoutStartedAt] = useState<number | null>(null);
@@ -2270,7 +2308,7 @@ function App() {
       [activeExercise.id]: [...(logs[activeExercise.id] ?? []), loggedSet]
     }));
     setLastLoggedExerciseId(activeExercise.id);
-    setWeightValue((value) => clamp(value + 2.5, 0, 300));
+    setWeightValue((value) => clamp(value + weightIncrementStep, 0, 300));
 
     const hasSupersetPartnerNext =
       activeExercise.supersetGroup != null &&
@@ -3643,6 +3681,36 @@ function App() {
                 }
                 onClick={() =>
                   adjustRestDurationSeconds(restDurationStepSeconds)
+                }
+              >
+                <Plus size={16} strokeWidth={3} />
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-row">
+            <div>
+              <strong>Set increment</strong>
+              <small>Weight added after each set</small>
+            </div>
+            <div className="settings-stepper">
+              <button
+                type="button"
+                aria-label="Decrease set increment"
+                disabled={weightIncrementStep <= minWeightIncrementStep}
+                onClick={() =>
+                  adjustWeightIncrementStep(-weightIncrementStepAmount)
+                }
+              >
+                <Minus size={16} strokeWidth={3} />
+              </button>
+              <span>{formatMetricValue(weightIncrementStep)} kg</span>
+              <button
+                type="button"
+                aria-label="Increase set increment"
+                disabled={weightIncrementStep >= maxWeightIncrementStep}
+                onClick={() =>
+                  adjustWeightIncrementStep(weightIncrementStepAmount)
                 }
               >
                 <Plus size={16} strokeWidth={3} />
