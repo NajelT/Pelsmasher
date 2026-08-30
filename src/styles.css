@@ -1132,7 +1132,9 @@ h1 {
 }
 
 .compare-exercise-card,
-.session-history-card {
+.selected-option-dialog .session-history-card {
+  width: 100%;
+  height: auto;
   display: grid;
   gap: 8px;
   padding: 13px 0;
@@ -1140,6 +1142,18 @@ h1 {
   border-top: 1px solid var(--stroke);
   border-radius: 0;
   background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: none;
+}
+
+.selected-option-dialog .session-history-card:active {
+  transform: none;
+  opacity: 0.85;
+  box-shadow: none;
 }
 
 .compare-exercise-card > strong {

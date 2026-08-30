@@ -62,13 +62,13 @@ type MuscleGroup = {
   imageSrc?: string;
 };
 
-type WorkoutHistoryEntry = {
+export type WorkoutHistoryEntry = {
   id: string;
   performedAt: string;
   summary: string;
 };
 
-type Exercise = {
+export type Exercise = {
   id: string;
   name: string;
   history: WorkoutHistoryEntry[];
@@ -80,7 +80,7 @@ type ExerciseDraft = {
   supersetGroup: number | null;
 };
 
-type WorkoutSet = {
+export type WorkoutSet = {
   id: string;
   muscleGroupId: string;
   name: string;
@@ -100,7 +100,7 @@ type LoggedExerciseSet = {
   performedAt: string;
 };
 
-type CompletedWorkoutPayload = {
+export type CompletedWorkoutPayload = {
   completedAt: string;
   durationSeconds: number;
   exerciseResults: Array<{
@@ -127,7 +127,7 @@ type WorkoutAnalyticsExercise = {
   previousVolume: number;
 };
 
-type WorkoutAnalytics = {
+export type WorkoutAnalytics = {
   completedAt: string;
   currentSets: number;
   currentVolume: number;
@@ -660,7 +660,49 @@ function getSessionExerciseSets(
     .sort((firstSet, secondSet) => firstSet.setNumber - secondSet.setNumber);
 }
 
-function buildWorkoutAnalytics(
+export function buildCompletedWorkoutPayloadFromSession(
+  session: ApiWorkoutSession
+): CompletedWorkoutPayload {
+  const exerciseResults: CompletedWorkoutPayload["exerciseResults"] = [];
+
+  for (const set of session.sets) {
+    let result = exerciseResults.find(
+      (candidate) => candidate.exerciseId === set.exerciseId
+    );
+
+    if (!result) {
+      result = {
+        exerciseId: set.exerciseId,
+        exerciseName: set.exerciseName,
+        sets: []
+      };
+      exerciseResults.push(result);
+    }
+
+    result.sets.push({
+      id: set.id,
+      exerciseId: set.exerciseId,
+      exerciseName: set.exerciseName,
+      weight: set.weight,
+      reps: set.reps,
+      performedAt: set.performedAt
+    });
+  }
+
+  return {
+    completedAt: session.completedAt,
+    durationSeconds: session.durationSeconds,
+    exerciseResults,
+    id: session.id,
+    muscleGroupId: session.muscleGroupId,
+    startedAt: session.startedAt,
+    totalSets: session.totalSets,
+    workoutSetId: session.workoutSetId,
+    workoutSetName: session.workoutSetName
+  };
+}
+
+export function buildWorkoutAnalytics(
   workout: CompletedWorkoutPayload,
   workoutSet: WorkoutSet,
   previousSession: ApiWorkoutSession | undefined
@@ -2150,6 +2192,21 @@ function App() {
     setStartedWorkoutSetId(null);
   }
 
+  function viewPastSessionStats(
+    session: ApiWorkoutSession,
+    workoutSet: WorkoutSet,
+    history: ApiWorkoutSession[]
+  ) {
+    const sessionIndex = history.findIndex((entry) => entry.id === session.id);
+    const previousSession =
+      sessionIndex === -1 ? undefined : history[sessionIndex + 1];
+    const completedWorkout = buildCompletedWorkoutPayloadFromSession(session);
+
+    setWorkoutAnalytics(
+      buildWorkoutAnalytics(completedWorkout, workoutSet, previousSession)
+    );
+  }
+
   async function handleShareWorkout(analytics: WorkoutAnalytics) {
     const text = buildWorkoutShareText(analytics);
 
@@ -3299,7 +3356,18 @@ function App() {
                     <div className="session-history-list">
                       {selectedWorkoutHistory.length > 0 ? (
                         selectedWorkoutHistory.map((session) => (
-                          <article className="session-history-card" key={session.id}>
+                          <button
+                            className="session-history-card"
+                            key={session.id}
+                            type="button"
+                            onClick={() =>
+                              viewPastSessionStats(
+                                session,
+                                selectedWorkoutSet,
+                                selectedWorkoutHistory
+                              )
+                            }
+                          >
                             <div className="session-history-topline">
                               <div>
                                 <strong>{formatHistoryDateTime(session.completedAt)}</strong>
@@ -3328,7 +3396,7 @@ function App() {
                                 );
                               })}
                             </div>
-                          </article>
+                          </button>
                         ))
                       ) : (
                         <p>No finished sessions for this option yet.</p>
