@@ -6,9 +6,9 @@ import App from "./App";
 const authResponse = {
   token: "test-token",
   user: {
-    displayName: "test@example.com",
     email: "test@example.com",
-    id: "user-1"
+    id: "user-1",
+    username: "ironmike"
   }
 };
 
@@ -64,12 +64,13 @@ describe("auth screen", () => {
     expect(payload.repeatPassword).toBeUndefined();
   });
 
-  test("submits registration with repeat password", async () => {
+  test("submits registration with username and repeat password", async () => {
     const fetchMock = mockApi();
     const user = userEvent.setup();
 
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Username"), "ironmike");
     await user.type(screen.getByLabelText("Email"), "test@example.com");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.type(screen.getByLabelText("Repeat password"), "secret123");
@@ -83,10 +84,26 @@ describe("auth screen", () => {
     const payload = JSON.parse(registerCall?.[1]?.body as string);
 
     expect(payload).toEqual({
+      username: "ironmike",
       email: "test@example.com",
       password: "secret123",
       repeatPassword: "secret123"
     });
+  });
+
+  test("does not call register API for blank username", async () => {
+    const fetchMock = mockApi();
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(screen.getByLabelText("Password"), "secret123");
+    await user.type(screen.getByLabelText("Repeat password"), "secret123");
+    await user.click(screen.getByRole("button", { name: "Register" }));
+
+    expect(await screen.findByText("Enter a username")).toBeTruthy();
+    expect(findFetchCall(fetchMock, "/auth/register")).toBeUndefined();
   });
 
   test("does not call register API for invalid email", async () => {
@@ -95,6 +112,7 @@ describe("auth screen", () => {
 
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Username"), "ironmike");
     await user.type(screen.getByLabelText("Email"), "najel");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.type(screen.getByLabelText("Repeat password"), "secret123");
@@ -118,6 +136,19 @@ describe("auth screen", () => {
 
     expect(await screen.findByRole("heading", { name: "Settings" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Log out" })).toBeTruthy();
+  });
+
+  test("shows the username on the home screen after login", async () => {
+    mockApi();
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(screen.getByLabelText("Password"), "secret123");
+    await user.click(screen.getByRole("button", { name: "Log in" }));
+
+    expect(await screen.findByRole("heading", { name: "Choose workout" })).toBeTruthy();
+    expect(screen.getByText("ironmike")).toBeTruthy();
   });
 });
 

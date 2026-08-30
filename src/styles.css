@@ -471,6 +471,12 @@ input {
   letter-spacing: 3px;
 }
 
+.home-identity {
+  color: var(--dim);
+  letter-spacing: 1px;
+  text-transform: none;
+}
+
 .eyebrow.is-live::before {
   content: "";
   width: 7px;

@@ -19,6 +19,7 @@ public final class ApiDtos {
     }
 
     public record RegisterRequest(
+        String username,
         @NotBlank String email,
         @NotBlank String password,
         @NotBlank String repeatPassword
@@ -34,7 +35,7 @@ public final class ApiDtos {
     public record AuthUserResponse(
         String id,
         String email,
-        String displayName
+        String username
     ) {
     }
 

@@ -39,9 +39,14 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        String email = cleanEmail(request.email());
+        String username = cleanText(request.username());
+        String normalizedUsername = UserEntity.normalizeUsername(username);
+        String email = cleanText(request.email());
         String normalizedEmail = UserEntity.normalizeEmail(email);
 
+        if (username.isEmpty()) {
+            throw new IllegalArgumentException("Username is required");
+        }
         if (!email.contains("@")) {
             throw new IllegalArgumentException("Email is invalid");
         }
@@ -51,12 +56,16 @@ public class AuthService {
         if (!request.password().equals(request.repeatPassword())) {
             throw new IllegalArgumentException("Passwords do not match");
         }
+        if (users.existsByNormalizedUsername(normalizedUsername)) {
+            throw new IllegalArgumentException("Username is already taken");
+        }
         if (users.existsByNormalizedEmail(normalizedEmail)) {
             throw new IllegalArgumentException("Email is already registered");
         }
 
         UserEntity user = users.save(new UserEntity(
             UUID.randomUUID().toString(),
+            username,
             email,
             passwordEncoder.encode(request.password())
         ));
@@ -91,11 +100,11 @@ public class AuthService {
     }
 
     private AuthUserResponse toUserResponse(UserEntity user) {
-        return new AuthUserResponse(user.getId(), user.getEmail(), user.getDisplayName());
+        return new AuthUserResponse(user.getId(), user.getEmail(), user.getUsername());
     }
 
-    private static String cleanEmail(String email) {
-        return email == null ? "" : email.trim();
+    private static String cleanText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     public static String hashToken(String token) {

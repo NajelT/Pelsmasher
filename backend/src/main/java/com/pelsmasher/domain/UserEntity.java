@@ -16,7 +16,10 @@ public class UserEntity {
     private String id;
 
     @Column(nullable = false)
-    private String displayName;
+    private String username;
+
+    @Column(nullable = false)
+    private String normalizedUsername;
 
     private String email;
 
@@ -33,21 +36,27 @@ public class UserEntity {
     protected UserEntity() {
     }
 
-    public UserEntity(String id, String displayName) {
+    public UserEntity(String id, String username) {
         this.id = id;
-        this.displayName = displayName;
+        this.username = username;
+        this.normalizedUsername = normalizeUsername(username);
     }
 
-    public UserEntity(String id, String email, String passwordHash) {
+    public UserEntity(String id, String username, String email, String passwordHash) {
         this.id = id;
+        this.username = username;
+        this.normalizedUsername = normalizeUsername(username);
         this.email = email;
         this.normalizedEmail = normalizeEmail(email);
         this.passwordHash = passwordHash;
-        this.displayName = email;
     }
 
     public static String normalizeEmail(String email) {
         return email.trim().toLowerCase();
+    }
+
+    public static String normalizeUsername(String username) {
+        return username.trim().toLowerCase();
     }
 
     @PrePersist
@@ -66,8 +75,12 @@ public class UserEntity {
         return id;
     }
 
-    public String getDisplayName() {
-        return displayName;
+    public String getUsername() {
+        return username;
+    }
+
+    public String getNormalizedUsername() {
+        return normalizedUsername;
     }
 
     public String getEmail() {

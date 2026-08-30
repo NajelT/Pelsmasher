@@ -1286,6 +1286,7 @@ function App() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>("loading");
   const [apiError, setApiError] = useState("");
   const [authUser, setAuthUser] = useState<ApiAuthUser | null>(readAuthUser);
+  const [authUsername, setAuthUsername] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authRepeatPassword, setAuthRepeatPassword] = useState("");
@@ -1410,6 +1411,7 @@ function App() {
     saveAuthToken(response.token);
     saveAuthUser(response.user);
     setAuthUser(response.user);
+    setAuthUsername("");
     setAuthPassword("");
     setAuthRepeatPassword("");
     setAuthError("");
@@ -1419,6 +1421,7 @@ function App() {
     setSelectedGroupId(null);
     setSelectedWorkoutSetId(null);
     setWorkoutAnalytics(null);
+    setIsSettingsOpen(false);
     await refreshMuscleGroups();
   }
 
@@ -1443,6 +1446,10 @@ function App() {
   }
 
   async function handleRegister() {
+    if (!authUsername.trim()) {
+      setAuthError("Enter a username");
+      return;
+    }
     if (!isValidEmail(authEmail)) {
       setAuthError("Enter a valid email");
       return;
@@ -1451,6 +1458,7 @@ function App() {
     try {
       const response = await apiRequest<ApiAuthResponse>("/auth/register", {
         body: JSON.stringify({
+          username: authUsername.trim(),
           email: authEmail.trim(),
           password: authPassword,
           repeatPassword: authRepeatPassword
@@ -1472,6 +1480,7 @@ function App() {
     setSelectedGroupId(null);
     setSelectedWorkoutSetId(null);
     setWorkoutAnalytics(null);
+    setIsSettingsOpen(false);
   }
 
   const localAllMuscleGroups = useMemo(
@@ -2578,6 +2587,18 @@ function App() {
                 void (isRegisterMode ? handleRegister() : handleLogin());
               }}
             >
+              {isRegisterMode ? (
+                <label className="auth-field">
+                  <span>Username</span>
+                  <input
+                    aria-label="Username"
+                    autoComplete="username"
+                    placeholder="ironmike"
+                    value={authUsername}
+                    onChange={(event) => setAuthUsername(event.target.value)}
+                  />
+                </label>
+              ) : null}
               <label className="auth-field">
                 <span>Email</span>
                 <input
@@ -3571,7 +3592,9 @@ function App() {
     <main className={shellClassName}>
       <section className="top-bar home-top-bar" aria-label="App header">
         <div>
-          <p className="eyebrow is-accent">Pelsmasher</p>
+          <p className="eyebrow is-accent">
+            Pelsmasher · <span className="home-identity">{authUser.username || authUser.email}</span>
+          </p>
           <h1>Choose workout</h1>
         </div>
         <button

@@ -117,6 +117,7 @@ class WorkoutSessionAnalyticsTests {
                 post("/api/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(Map.of(
+                        "username", "analytics-" + UUID.randomUUID(),
                         "email", email,
                         "password", "secret123",
                         "repeatPassword", "secret123"

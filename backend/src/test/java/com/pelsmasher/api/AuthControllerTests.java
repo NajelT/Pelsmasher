@@ -33,13 +33,14 @@ class AuthControllerTests {
     @Test
     void registerCreatesUserTokenAndSeededCatalog() throws Exception {
         String email = uniqueEmail();
+        String username = uniqueUsername();
 
-        MvcResult result = register(email, "secret123", "secret123")
+        MvcResult result = register(username, email, "secret123", "secret123")
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.token").isString())
             .andExpect(jsonPath("$.user.id").isString())
             .andExpect(jsonPath("$.user.email").value(email))
-            .andExpect(jsonPath("$.user.displayName").value(email))
+            .andExpect(jsonPath("$.user.username").value(username))
             .andReturn();
 
         String token = tokenFrom(result);
@@ -53,7 +54,7 @@ class AuthControllerTests {
     @Test
     void loginReturnsNewTokenForExistingUserWithCaseInsensitiveEmail() throws Exception {
         String email = uniqueEmail();
-        MvcResult registerResult = register(email, "secret123", "secret123")
+        MvcResult registerResult = register(uniqueUsername(), email, "secret123", "secret123")
             .andExpect(status().isCreated())
             .andReturn();
 
@@ -72,30 +73,47 @@ class AuthControllerTests {
     @Test
     void registerRejectsDuplicateEmailIgnoringCase() throws Exception {
         String email = uniqueEmail();
-        register(email, "secret123", "secret123").andExpect(status().isCreated());
+        register(uniqueUsername(), email, "secret123", "secret123").andExpect(status().isCreated());
 
-        register(email.toUpperCase(), "secret123", "secret123")
+        register(uniqueUsername(), email.toUpperCase(), "secret123", "secret123")
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("Email is already registered"));
     }
 
     @Test
+    void registerRejectsDuplicateUsernameIgnoringCase() throws Exception {
+        String username = uniqueUsername();
+        register(username, uniqueEmail(), "secret123", "secret123").andExpect(status().isCreated());
+
+        register(username.toUpperCase(), uniqueEmail(), "secret123", "secret123")
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Username is already taken"));
+    }
+
+    @Test
+    void registerRejectsBlankUsername() throws Exception {
+        register("   ", uniqueEmail(), "secret123", "secret123")
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Username is required"));
+    }
+
+    @Test
     void registerRejectsMismatchedPassword() throws Exception {
-        register(uniqueEmail(), "secret123", "secret456")
+        register(uniqueUsername(), uniqueEmail(), "secret123", "secret456")
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("Passwords do not match"));
     }
 
     @Test
     void registerRejectsShortPassword() throws Exception {
-        register(uniqueEmail(), "short", "short")
+        register(uniqueUsername(), uniqueEmail(), "short", "short")
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("Password must be at least 6 characters"));
     }
 
     @Test
     void registerRejectsInvalidEmail() throws Exception {
-        register("najel", "secret123", "secret123")
+        register(uniqueUsername(), "najel", "secret123", "secret123")
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("Email is invalid"));
     }
@@ -103,7 +121,7 @@ class AuthControllerTests {
     @Test
     void loginRejectsWrongPasswordWithUnauthorized() throws Exception {
         String email = uniqueEmail();
-        register(email, "secret123", "secret123").andExpect(status().isCreated());
+        register(uniqueUsername(), email, "secret123", "secret123").andExpect(status().isCreated());
 
         login(email, "wrong-password")
             .andExpect(status().isUnauthorized())
@@ -112,10 +130,10 @@ class AuthControllerTests {
 
     @Test
     void bearerTokenKeepsUserCatalogsSeparated() throws Exception {
-        String firstToken = tokenFrom(register(uniqueEmail(), "secret123", "secret123")
+        String firstToken = tokenFrom(register(uniqueUsername(), uniqueEmail(), "secret123", "secret123")
             .andExpect(status().isCreated())
             .andReturn());
-        String secondToken = tokenFrom(register(uniqueEmail(), "secret123", "secret123")
+        String secondToken = tokenFrom(register(uniqueUsername(), uniqueEmail(), "secret123", "secret123")
             .andExpect(status().isCreated())
             .andReturn());
 
@@ -143,6 +161,7 @@ class AuthControllerTests {
     }
 
     private org.springframework.test.web.servlet.ResultActions register(
+        String username,
         String email,
         String password,
         String repeatPassword
@@ -151,6 +170,7 @@ class AuthControllerTests {
             post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
+                    "username", username,
                     "email", email,
                     "password", password,
                     "repeatPassword", repeatPassword
@@ -175,5 +195,9 @@ class AuthControllerTests {
 
     private static String uniqueEmail() {
         return "user-" + UUID.randomUUID() + "@example.com";
+    }
+
+    private static String uniqueUsername() {
+        return "user-" + UUID.randomUUID();
     }
 }

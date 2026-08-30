@@ -93,9 +93,9 @@ export type ApiCompleteWorkoutResponse = {
 };
 
 export type ApiAuthUser = {
-  displayName: string;
   email: string;
   id: string;
+  username: string;
 };
 
 export type ApiAuthResponse = {
