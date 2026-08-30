@@ -1234,22 +1234,41 @@ function VerticalMetricPicker({
   }, [max, min, step]);
   const dragRef = useRef({
     lastSnap: value,
+    lastRawValue: value,
+    lastTime: 0,
     pointerId: null as number | null,
     rawValue: value,
     startValue: value,
-    startY: 0
+    startY: 0,
+    // Smoothed drag speed in steps-per-millisecond, used to decide whether
+    // releasing counts as a slow, controlled drag or a fast flick.
+    velocityStepsPerMs: 0
   });
+  const momentumFrameRef = useRef<number | null>(null);
   const [previewValue, setPreviewValue] = useState<number | null>(null);
   const displayValue = previewValue ?? value;
   const stripOffset = ((displayValue - min) / step) * pixelsPerStep;
 
+  function cancelMomentum() {
+    if (momentumFrameRef.current !== null) {
+      cancelAnimationFrame(momentumFrameRef.current);
+      momentumFrameRef.current = null;
+    }
+  }
+
+  useEffect(() => cancelMomentum, []);
+
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    cancelMomentum();
     dragRef.current = {
       lastSnap: value,
+      lastRawValue: value,
+      lastTime: event.timeStamp,
       pointerId: event.pointerId,
       rawValue: value,
       startValue: value,
-      startY: event.clientY
+      startY: event.clientY,
+      velocityStepsPerMs: 0
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -1266,6 +1285,17 @@ function VerticalMetricPicker({
     );
     const snappedValue = snapMetricValue(rawValue, min, max, step);
 
+    // Smooth the instantaneous speed (rather than trusting a single,
+    // possibly jittery pointermove sample) so a fast flick is told apart
+    // from a slow, controlled drag reliably.
+    const dt = event.timeStamp - drag.lastTime;
+    if (dt > 0) {
+      const instantVelocity = (rawValue - drag.lastRawValue) / step / dt;
+      drag.velocityStepsPerMs = drag.velocityStepsPerMs * 0.7 + instantVelocity * 0.3;
+    }
+    drag.lastRawValue = rawValue;
+    drag.lastTime = event.timeStamp;
+
     drag.rawValue = rawValue;
     setPreviewValue(snappedValue);
 
@@ -1281,9 +1311,62 @@ function VerticalMetricPicker({
     if (drag.pointerId !== event.pointerId) return;
 
     drag.pointerId = null;
+
+    const flingThresholdStepsPerMs = 0.006;
+    if (Math.abs(drag.velocityStepsPerMs) > flingThresholdStepsPerMs) {
+      startMomentum(drag.rawValue, drag.velocityStepsPerMs, drag.lastSnap);
+      return;
+    }
+
     const snappedValue = snapMetricValue(drag.rawValue, min, max, step);
     setPreviewValue(null);
     onChange(snappedValue);
+  }
+
+  function startMomentum(
+    startRawValue: number,
+    initialVelocityStepsPerMs: number,
+    startSnap: number
+  ) {
+    let rawValue = startRawValue;
+    let velocity = initialVelocityStepsPerMs;
+    let lastSnap = startSnap;
+    let lastTimestamp: number | null = null;
+    // Higher friction = the flick settles sooner. Tuned to feel like an
+    // iOS picker wheel: a hard flick still spins for a bit, not forever.
+    const frictionPerMs = 0.0035;
+
+    function frame(timestamp: number) {
+      if (lastTimestamp === null) lastTimestamp = timestamp;
+      const dt = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
+
+      velocity *= Math.exp(-frictionPerMs * dt);
+      rawValue = clamp(rawValue + velocity * step * dt, min, max);
+
+      const snapped = snapMetricValue(rawValue, min, max, step);
+      setPreviewValue(snapped);
+
+      if (snapped !== lastSnap) {
+        lastSnap = snapped;
+        onChange(snapped);
+        playPickerClick();
+      }
+
+      const hitBounds = rawValue <= min || rawValue >= max;
+      const settled = Math.abs(velocity) < 0.0004;
+
+      if (hitBounds || settled) {
+        momentumFrameRef.current = null;
+        setPreviewValue(null);
+        onChange(snapMetricValue(rawValue, min, max, step));
+        return;
+      }
+
+      momentumFrameRef.current = requestAnimationFrame(frame);
+    }
+
+    momentumFrameRef.current = requestAnimationFrame(frame);
   }
 
   return (
