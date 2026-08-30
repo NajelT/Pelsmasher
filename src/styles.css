@@ -1694,7 +1694,7 @@ h1 {
 }
 
 .workout-exercise-button.is-finished .exercise-index {
-  color: var(--dim);
+  color: var(--acid);
 }
 
 .workout-exercise-button strong {
@@ -1819,7 +1819,7 @@ h1 {
   position: relative;
   flex: 1;
   height: 3px;
-  overflow: visible;
+  overflow: hidden;
   border: none;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
@@ -1844,128 +1844,6 @@ h1 {
   }
   to {
     width: 100%;
-  }
-}
-
-/* PLS-7: a dense, erratic spark shower riding the leading edge of the
-   fill — many thin rays firing outward at random angles/lengths/timing
-   (Chidori-style crackle), not a handful of predictable pulsing dots. */
-.spark-core {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff, var(--acid-2) 45%, transparent 75%);
-  box-shadow: 0 0 8px 2px rgba(223, 255, 122, 0.85);
-  transform: translate(50%, -50%);
-  animation: spark-core-flicker 0.35s steps(1, end) infinite;
-  pointer-events: none;
-}
-
-.spark-field {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
-.spark-ray {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-}
-
-.spark-streak {
-  position: absolute;
-  bottom: 0;
-  left: -0.75px;
-  width: 1.5px;
-  border-radius: 999px;
-  transform-origin: bottom center;
-  animation-name: spark-streak-shoot;
-  animation-timing-function: steps(1, end);
-  animation-iteration-count: infinite;
-}
-
-.spark-streak--white {
-  background: linear-gradient(#fff, rgba(255, 255, 255, 0));
-}
-
-.spark-streak--acid {
-  background: linear-gradient(var(--acid), rgba(199, 255, 53, 0));
-}
-
-.spark-streak--acid2 {
-  background: linear-gradient(var(--acid-2), rgba(223, 255, 122, 0));
-}
-
-@keyframes spark-core-flicker {
-  0% {
-    transform: translate(50%, -50%) scale(1.5);
-    opacity: 1;
-    filter: brightness(2.2);
-  }
-  20% {
-    transform: translate(50%, -50%) scale(0.8);
-    opacity: 0.5;
-    filter: brightness(1);
-  }
-  40% {
-    transform: translate(50%, -50%) scale(1.6);
-    opacity: 1;
-    filter: brightness(2.5);
-  }
-  55% {
-    transform: translate(50%, -50%) scale(1);
-    opacity: 0.65;
-    filter: brightness(1.1);
-  }
-  75% {
-    transform: translate(50%, -50%) scale(1.4);
-    opacity: 1;
-    filter: brightness(2);
-  }
-  100% {
-    transform: translate(50%, -50%) scale(0.9);
-    opacity: 0.7;
-    filter: brightness(1.2);
-  }
-}
-
-@keyframes spark-streak-shoot {
-  0% {
-    transform: scaleY(0.15);
-    opacity: 1;
-  }
-  25% {
-    transform: scaleY(0.55);
-    opacity: 1;
-  }
-  50% {
-    transform: scaleY(1);
-    opacity: 0.9;
-  }
-  75% {
-    transform: scaleY(1);
-    opacity: 0.35;
-  }
-  100% {
-    transform: scaleY(1);
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .spark-core,
-  .spark-streak {
-    animation: none;
-    opacity: 0;
   }
 }
 
@@ -2308,6 +2186,15 @@ h1 {
   font: 600 18px var(--font-display);
   letter-spacing: 2px;
   text-transform: uppercase;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.workout-finish-main.is-ready {
+  border-color: var(--acid);
+  background: var(--acid);
+  color: var(--app-bg-deep);
+  box-shadow: 0 0 34px rgba(199, 255, 53, 0.2);
 }
 
 .workout-summary-shell {

@@ -505,28 +505,6 @@ function formatRestTime(seconds: number) {
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-type SparkParticle = {
-  id: string;
-  angleDeg: number;
-  lengthPx: number;
-  durationS: number;
-  delayS: number;
-  hue: "white" | "acid" | "acid2";
-};
-
-const sparkHues: SparkParticle["hue"][] = ["white", "acid", "acid2"];
-
-function buildSparkParticles(count: number): SparkParticle[] {
-  return Array.from({ length: count }, (_, index) => ({
-    id: `spark-${index}-${Math.random().toString(36).slice(2, 8)}`,
-    angleDeg: Math.random() * 360,
-    lengthPx: 5 + Math.random() * 13,
-    durationS: 0.3 + Math.random() * 0.45,
-    delayS: Math.random() * 0.4,
-    hue: sparkHues[Math.floor(Math.random() * sparkHues.length)]
-  }));
-}
-
 function formatWorkoutElapsed(seconds: number) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -1358,7 +1336,6 @@ function App() {
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [restRemainingSeconds, setRestRemainingSeconds] = useState(0);
   const [smashCueActive, setSmashCueActive] = useState(false);
-  const restSparkParticles = useMemo(() => buildSparkParticles(22), [restEndsAt]);
   const [workoutStartedAt, setWorkoutStartedAt] = useState<number | null>(null);
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0);
   const [workoutAnalytics, setWorkoutAnalytics] =
@@ -2834,27 +2811,7 @@ function App() {
                       key={restEndsAt}
                       className="rest-timer-fill"
                       style={{ animationDuration: `${restDurationSeconds}s` }}
-                    >
-                      <span className="spark-core" />
-                      <span className="spark-field">
-                        {restSparkParticles.map((particle) => (
-                          <span
-                            key={particle.id}
-                            className="spark-ray"
-                            style={{ transform: `rotate(${particle.angleDeg}deg)` }}
-                          >
-                            <span
-                              className={`spark-streak spark-streak--${particle.hue}`}
-                              style={{
-                                height: `${particle.lengthPx}px`,
-                                animationDuration: `${particle.durationS}s`,
-                                animationDelay: `${particle.delayS}s`
-                              }}
-                            />
-                          </span>
-                        ))}
-                      </span>
-                    </span>
+                    />
                   </div>
                 </div>
               ) : smashCueActive ? (
@@ -2920,14 +2877,6 @@ function App() {
                   <ArrowRight size={23} strokeWidth={3} />
                   {nextExercise ? "Next exercise" : "Finish exercise"}
                 </button>
-                <button
-                  className="finish-workout-button"
-                  type="button"
-                  onClick={finishWorkout}
-                >
-                  <Check size={23} strokeWidth={3} />
-                  Finish workout
-                </button>
               </div>
             </section>
             {countdownOverlay}
@@ -2938,6 +2887,11 @@ function App() {
       const exerciseDisplayLabels = buildExerciseDisplayLabels(
         activeWorkoutSet.exercises
       );
+      const allExercisesFinished =
+        activeWorkoutSet.exercises.length > 0 &&
+        activeWorkoutSet.exercises.every((exercise) =>
+          finishedExerciseIds.includes(exercise.id)
+        );
 
       return (
         <main className={workoutShellClassName}>
@@ -3004,7 +2958,9 @@ function App() {
               })}
             </div>
             <button
-              className="finish-workout-button workout-finish-main"
+              className={`finish-workout-button workout-finish-main${
+                allExercisesFinished ? " is-ready" : ""
+              }`}
               type="button"
               onClick={finishWorkout}
             >
