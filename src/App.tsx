@@ -1,6 +1,7 @@
 import {
   ChangeEvent,
   FormEvent,
+  Fragment,
   PointerEvent as ReactPointerEvent,
   useEffect,
   useMemo,
@@ -160,6 +161,7 @@ const maxRestDurationSeconds = 120;
 const restDurationStepSeconds = 10;
 const restDurationSecondsStorageKey = "pelsmasher.restDurationSeconds";
 const restTimerEnabledStorageKey = "pelsmasher.restTimerEnabled";
+const supersetTrackerStorageKey = "pelsmasher.supersetTracker";
 const defaultWeightIncrementStep = 2.5;
 const minWeightIncrementStep = 0.5;
 const maxWeightIncrementStep = 10;
@@ -499,6 +501,18 @@ function readRestTimerEnabled() {
   } catch {
     return true;
   }
+}
+
+export function readSupersetTrackerEnabled() {
+  try {
+    return window.localStorage.getItem(supersetTrackerStorageKey) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function saveSupersetTrackerEnabled(enabled: boolean) {
+  window.localStorage.setItem(supersetTrackerStorageKey, String(enabled));
 }
 
 function saveRestTimerEnabled(enabled: boolean) {
@@ -1465,6 +1479,158 @@ function VerticalMetricPicker({
   );
 }
 
+export function removeLoggedSet<T extends { id: string }>(sets: T[], id: string): T[] {
+  return sets.filter((set) => set.id !== id);
+}
+
+export function updateLoggedSet<T extends { id: string; reps: number; weight: number }>(
+  sets: T[],
+  id: string,
+  weight: number,
+  reps: number
+): T[] {
+  return sets.map((set) => (set.id === id ? { ...set, reps, weight } : set));
+}
+
+export function RecordedSetStrip({
+  letter = "",
+  onDelete,
+  onSelect,
+  selectedId,
+  sets
+}: {
+  letter?: string;
+  onDelete: (id: string) => void;
+  onSelect: (id: string) => void;
+  selectedId: string | null;
+  sets: Array<{ id: string; reps: number; weight: number }>;
+}) {
+  if (sets.length === 0) {
+    return (
+      <div className="recorded-set-strip">
+        <small>No sets logged yet</small>
+      </div>
+    );
+  }
+
+  return (
+    <div className="recorded-set-strip">
+      {sets.map((set, index) => {
+        const isSelected = set.id === selectedId;
+
+        return (
+          <span
+            key={set.id}
+            className={`recorded-set-chip${isSelected ? " is-selected" : ""}`}
+          >
+            <button
+              type="button"
+              className="recorded-set-select"
+              aria-pressed={isSelected}
+              aria-label={`Edit set ${index + 1}`}
+              onClick={() => onSelect(set.id)}
+            >
+              {index + 1}
+              {letter}: {formatMetricValue(set.weight)} x {set.reps}
+            </button>
+            {isSelected ? (
+              <button
+                type="button"
+                className="recorded-set-delete"
+                aria-label={`Delete set ${index + 1}`}
+                onClick={() => onDelete(set.id)}
+              >
+                <X size={14} strokeWidth={3} />
+              </button>
+            ) : null}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+export type SupersetTrackerNode = {
+  id: string;
+  label: string;
+  state: "current" | "done" | "next";
+  text: string;
+};
+
+export function buildSupersetTracker(
+  members: Array<{ id: string }>,
+  currentId: string,
+  round: number,
+  logsByExercise: Record<string, Array<{ reps: number; weight: number }>>,
+  currentValue: { reps: number; weight: number }
+): SupersetTrackerNode[] {
+  if (members.length < 2 || !members.some((member) => member.id === currentId)) {
+    return [];
+  }
+
+  return members.map((member, index) => {
+    const label = `${round}${String.fromCharCode(65 + index)}`;
+
+    if (member.id === currentId) {
+      return {
+        id: member.id,
+        label,
+        state: "current",
+        text: `${formatMetricValue(currentValue.weight)} × ${currentValue.reps}`
+      };
+    }
+
+    const logged = (logsByExercise[member.id] ?? [])[round - 1];
+
+    if (logged) {
+      return {
+        id: member.id,
+        label,
+        state: "done",
+        text: `${formatMetricValue(logged.weight)} × ${logged.reps}`
+      };
+    }
+
+    return { id: member.id, label, state: "next", text: "next" };
+  });
+}
+
+export function SupersetTracker({ nodes }: { nodes: SupersetTrackerNode[] }) {
+  if (nodes.length === 0) return null;
+
+  return (
+    <div className="superset-tracker" role="group" aria-label="Superset round">
+      {nodes.map((node, index) => (
+        <Fragment key={node.id}>
+          {index > 0 ? (
+            <span
+              className={`superset-tracker-link${
+                nodes[index - 1].state === "done" ? " is-done" : ""
+              }`}
+              data-testid="superset-tracker-link"
+              aria-hidden="true"
+            >
+              <ArrowRight size={18} strokeWidth={3} />
+            </span>
+          ) : null}
+          <span
+            className={`superset-tracker-node is-${node.state}`}
+            aria-current={node.state === "current" ? "step" : undefined}
+          >
+            <small>{node.label}</small>
+            <b>
+              {node.state === "done" ? (
+                <Check size={13} strokeWidth={3.5} aria-hidden="true" />
+              ) : null}
+              {node.text}
+            </b>
+          </span>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
 export type SupersetStackItem = { id: string; name: string; slot: number };
 
 export function buildSupersetStack(
@@ -1878,6 +2044,8 @@ function App() {
   const [workoutLogs, setWorkoutLogs] = useState<
     Record<string, LoggedExerciseSet[]>
   >({});
+  const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const pickerBackupRef = useRef<{ reps: number; weight: number } | null>(null);
   const [weightValue, setWeightValue] = useState(80);
   const [repValue, setRepValue] = useState(8);
   const [finishedExerciseIds, setFinishedExerciseIds] = useState<string[]>([]);
@@ -1886,6 +2054,9 @@ function App() {
   const [smashCueActive, setSmashCueActive] = useState(false);
   const [restDurationSeconds, setRestDurationSeconds] = useState(() =>
     readRestDurationSeconds()
+  );
+  const [supersetTrackerEnabled, setSupersetTrackerEnabled] = useState(() =>
+    readSupersetTrackerEnabled()
   );
   const [restTimerEnabled, setRestTimerEnabled] = useState(() =>
     readRestTimerEnabled()
@@ -2006,6 +2177,14 @@ function App() {
     setProgressMonthCursor((previous) => addMonths(previous, delta));
     setProgressSelectedDay(null);
     setProgressSessionMessage("");
+  }
+
+  function toggleSupersetTrackerEnabled() {
+    setSupersetTrackerEnabled((previousEnabled) => {
+      const nextEnabled = !previousEnabled;
+      saveSupersetTrackerEnabled(nextEnabled);
+      return nextEnabled;
+    });
   }
 
   function toggleRestTimerEnabled() {
@@ -2856,6 +3035,72 @@ function App() {
     closeOptionDialog();
   }
 
+  useEffect(() => {
+    setEditingSetId(null);
+    pickerBackupRef.current = null;
+  }, [activeExerciseId]);
+
+  function restorePickersAfterEdit() {
+    const backup = pickerBackupRef.current;
+    pickerBackupRef.current = null;
+    setEditingSetId(null);
+
+    if (backup) {
+      setWeightValue(backup.weight);
+      setRepValue(backup.reps);
+    }
+  }
+
+  function handleSelectLoggedSet(id: string) {
+    const set = activeExerciseLogs.find((entry) => entry.id === id);
+    if (!set) return;
+
+    if (editingSetId === id) {
+      restorePickersAfterEdit();
+      return;
+    }
+
+    if (editingSetId === null) {
+      pickerBackupRef.current = { reps: repValue, weight: weightValue };
+    }
+
+    setEditingSetId(id);
+    setWeightValue(set.weight);
+    setRepValue(set.reps);
+  }
+
+  function handleDeleteLoggedSet(id: string) {
+    if (!activeExercise) return;
+
+    setWorkoutLogs((logs) => ({
+      ...logs,
+      [activeExercise.id]: removeLoggedSet(logs[activeExercise.id] ?? [], id)
+    }));
+
+    if (editingSetId === id) {
+      restorePickersAfterEdit();
+    }
+  }
+
+  function saveEditedSet() {
+    if (!activeExercise || !editingSetId) return;
+
+    const editedId = editingSetId;
+    const weight = weightValue;
+    const reps = repValue;
+
+    setWorkoutLogs((logs) => ({
+      ...logs,
+      [activeExercise.id]: updateLoggedSet(
+        logs[activeExercise.id] ?? [],
+        editedId,
+        weight,
+        reps
+      )
+    }));
+    restorePickersAfterEdit();
+  }
+
   function openExerciseRecorder(exercise: Exercise) {
     const exerciseLogs = workoutLogs[exercise.id] ?? [];
     const lastLoggedSet = exerciseLogs[exerciseLogs.length - 1];
@@ -2870,6 +3115,11 @@ function App() {
 
   function logExerciseSet() {
     if (!activeExercise) return;
+
+    if (editingSetId) {
+      saveEditedSet();
+      return;
+    }
 
     const loggedSet: LoggedExerciseSet = {
       id: `logged-set-${Date.now()}`,
@@ -3511,6 +3761,12 @@ function App() {
                 (exercise) => exercise.supersetGroup === activeExercise.supersetGroup
               )
             : [];
+        const showSupersetTracker = supersetTrackerEnabled && supersetMembers.length > 1;
+        const supersetLetter = showSupersetTracker
+          ? String.fromCharCode(
+              65 + supersetMembers.findIndex((member) => member.id === activeExercise.id)
+            )
+          : "";
         const isLastInSupersetRound =
           !hasSupersetPartnerNext &&
           Boolean(firstGroupMember) &&
@@ -3558,7 +3814,17 @@ function App() {
                 </div>
               </div>
 
-              {hasSupersetPartnerNext ? (
+              {showSupersetTracker ? (
+                <SupersetTracker
+                  nodes={buildSupersetTracker(
+                    supersetMembers,
+                    activeExercise.id,
+                    activeExerciseLogs.length + 1,
+                    workoutLogs,
+                    { reps: repValue, weight: weightValue }
+                  )}
+                />
+              ) : hasSupersetPartnerNext ? (
                 <p className="superset-hint">
                   Superset · no rest · next {nextExercise!.name}
                 </p>
@@ -3568,17 +3834,13 @@ function App() {
                 </p>
               ) : null}
 
-              <div className="recorded-set-strip">
-                {activeExerciseLogs.length > 0 ? (
-                  activeExerciseLogs.map((set, index) => (
-                    <span key={set.id}>
-                      {index + 1}: {formatMetricValue(set.weight)} x {set.reps}
-                    </span>
-                  ))
-                ) : (
-                  <small>No sets logged yet</small>
-                )}
-              </div>
+              <RecordedSetStrip
+                letter={supersetLetter}
+                onDelete={handleDeleteLoggedSet}
+                onSelect={handleSelectLoggedSet}
+                selectedId={editingSetId}
+                sets={activeExerciseLogs}
+              />
 
               {isResting ? (
                 <div className="rest-timer-card" aria-live="polite">
@@ -3647,7 +3909,7 @@ function App() {
                   onClick={logExerciseSet}
                 >
                   <Check size={23} strokeWidth={3} />
-                  Log set
+                  {editingSetId ? "Update set" : "Log set"}
                 </button>
                 <button
                   className="next-exercise-button"
@@ -4509,6 +4771,21 @@ function App() {
         </section>
 
         <section className="workout-panel settings-panel">
+          <div className="settings-row">
+            <div>
+              <strong>Superset round tracker</strong>
+              <small>Off brings back the old look</small>
+            </div>
+            <button
+              className="settings-toggle"
+              type="button"
+              role="switch"
+              aria-checked={supersetTrackerEnabled}
+              aria-label="Superset round tracker"
+              onClick={toggleSupersetTrackerEnabled}
+            />
+          </div>
+
           <div className="settings-row">
             <div>
               <strong>Rest timer</strong>

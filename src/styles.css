@@ -3276,3 +3276,142 @@ h1 {
     animation: none;
   }
 }
+
+/* Edit or delete a logged set (PLS-36) */
+
+.recorded-set-strip .recorded-set-chip {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.recorded-set-strip .recorded-set-select {
+  width: auto;
+  min-height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 99px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: none;
+  touch-action: manipulation;
+}
+
+.recorded-set-strip .recorded-set-select:active {
+  transform: none;
+}
+
+.recorded-set-strip .recorded-set-chip.is-selected {
+  background: rgba(199, 255, 53, 0.14);
+  box-shadow: inset 0 0 0 1px var(--acid);
+}
+
+.recorded-set-strip .recorded-set-chip.is-selected .recorded-set-select {
+  padding-right: 6px;
+  color: var(--ink);
+}
+
+.recorded-set-strip .recorded-set-delete {
+  width: 24px;
+  height: 24px;
+  min-height: 0;
+  margin-right: 4px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 77, 94, 0.22);
+  color: var(--muscle);
+  box-shadow: none;
+  touch-action: manipulation;
+}
+
+.recorded-set-strip .recorded-set-delete:active {
+  transform: none;
+  background: rgba(255, 77, 94, 0.4);
+}
+
+/* Superset round tracker (PLS-37) */
+
+.superset-tracker {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 0;
+}
+
+.superset-tracker-node {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 56px;
+}
+
+.superset-tracker-node small {
+  color: var(--dim);
+  font: 600 11px var(--font-ui);
+  letter-spacing: 1px;
+  transition: color 0.3s ease;
+}
+
+.superset-tracker-node b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dim);
+  font: 600 15px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: color 0.3s ease, font-size 0.3s ease;
+}
+
+.superset-tracker-node.is-current small {
+  color: var(--acid);
+}
+
+.superset-tracker-node.is-current b {
+  color: var(--ink-hot);
+  font-size: 24px;
+}
+
+.superset-tracker-node.is-done b {
+  color: var(--muted);
+}
+
+.superset-tracker-node.is-done b svg {
+  color: var(--acid);
+}
+
+.superset-tracker-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  align-self: flex-end;
+  padding-bottom: 3px;
+  color: var(--dim);
+  transition: color 0.3s ease;
+}
+
+.superset-tracker-link svg {
+  display: block;
+}
+
+.superset-tracker-link.is-done {
+  color: var(--acid);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .superset-tracker-node small,
+  .superset-tracker-node b,
+  .superset-tracker-link {
+    transition: none;
+  }
+}
