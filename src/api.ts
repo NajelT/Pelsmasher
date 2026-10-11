@@ -95,8 +95,11 @@ export type ApiCompleteWorkoutResponse = {
 export type ApiWorkoutSessionSummary = {
   completedAt: string;
   id: string;
+  muscleGroupId: string;
+  muscleGroupName: string;
   totalSets: number;
   totalVolume: number;
+  workoutSetId: string;
   workoutSetName: string;
 };
 

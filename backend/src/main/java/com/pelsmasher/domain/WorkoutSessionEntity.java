@@ -118,6 +118,10 @@ public class WorkoutSessionEntity {
         return muscleGroupId;
     }
 
+    public MuscleGroupEntity getMuscleGroup() {
+        return muscleGroup;
+    }
+
     public String getTrainingOptionId() {
         return trainingOptionId;
     }

@@ -1,5 +1,6 @@
 package com.pelsmasher.service;
 
+import com.pelsmasher.api.ApiDtos.CreateExerciseRequest;
 import com.pelsmasher.api.ApiDtos.CreateMuscleGroupRequest;
 import com.pelsmasher.api.ApiDtos.CreateTrainingOptionRequest;
 import com.pelsmasher.api.ApiDtos.ExerciseInput;
@@ -41,6 +42,24 @@ public class CatalogService {
         this.trainingOptions = trainingOptions;
         this.workoutSessions = workoutSessions;
         this.localUserService = localUserService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExerciseResponse> listExercises() {
+        String userId = localUserService.ensureLocalUser().getId();
+
+        return exercises.findByUserIdAndArchivedFalseOrderByNormalizedNameAsc(userId)
+            .stream()
+            .map(exercise -> new ExerciseResponse(exercise.getId(), exercise.getName(), null))
+            .toList();
+    }
+
+    @Transactional
+    public ExerciseResponse createExercise(CreateExerciseRequest request) {
+        String userId = localUserService.ensureLocalUser().getId();
+        ExerciseEntity exercise = resolveExercise(userId, request.name().trim());
+
+        return new ExerciseResponse(exercise.getId(), exercise.getName(), null);
     }
 
     @Transactional(readOnly = true)

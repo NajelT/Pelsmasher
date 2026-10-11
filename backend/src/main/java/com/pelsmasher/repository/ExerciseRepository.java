@@ -9,5 +9,7 @@ public interface ExerciseRepository extends JpaRepository<ExerciseEntity, String
 
     Optional<ExerciseEntity> findByUserIdAndNormalizedNameAndArchivedFalse(String userId, String normalizedName);
 
+    List<ExerciseEntity> findByUserIdAndArchivedFalseOrderByNormalizedNameAsc(String userId);
+
     List<ExerciseEntity> findByUserIdIsNull();
 }

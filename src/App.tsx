@@ -23,6 +23,7 @@ import {
   Pencil,
   Play,
   Plus,
+  RefreshCw,
   Settings,
   Share2,
   Timer,
@@ -35,6 +36,7 @@ import {
   ApiAuthResponse,
   ApiAuthUser,
   ApiCompleteWorkoutResponse,
+  ApiExercise,
   ApiLoggedSet,
   ApiMuscleGroup,
   ApiMuscleKey,
@@ -726,6 +728,29 @@ export function buildCompletedWorkoutPayloadFromSession(
     totalSets: session.totalSets,
     workoutSetId: session.workoutSetId,
     workoutSetName: session.workoutSetName
+  };
+}
+
+export function buildWorkoutSetFromSession(session: ApiWorkoutSession): WorkoutSet {
+  const exercises: Exercise[] = [];
+
+  for (const set of session.sets) {
+    if (exercises.some((exercise) => exercise.id === set.exerciseId)) continue;
+
+    exercises.push({
+      history: [],
+      id: set.exerciseId,
+      name: set.exerciseName,
+      supersetGroup: null
+    });
+  }
+
+  return {
+    exercises,
+    history: [],
+    id: session.workoutSetId,
+    muscleGroupId: session.muscleGroupId,
+    name: session.workoutSetName
   };
 }
 
@@ -1440,6 +1465,108 @@ function VerticalMetricPicker({
   );
 }
 
+export type SupersetStackItem = { id: string; name: string; slot: number };
+
+export function buildSupersetStack(
+  members: Array<{ id: string; name: string }>,
+  currentId: string
+): SupersetStackItem[] {
+  const currentIndex = members.findIndex((member) => member.id === currentId);
+  if (members.length < 2 || currentIndex === -1) return [];
+
+  return members.map((member, index) => ({
+    id: member.id,
+    name: member.name,
+    slot: (index - currentIndex + members.length) % members.length
+  }));
+}
+
+// Names this long may wrap onto two lines at the large size; shorter ones fit on one.
+const supersetTwoLineNameLength = 16;
+
+function supersetSlotHeight(slot: number, currentName: string) {
+  if (slot === 0) {
+    return currentName.length > supersetTwoLineNameLength ? 60 : 30;
+  }
+
+  return slot === 1 ? 24 : 20;
+}
+
+export function SupersetCarousel({
+  currentId,
+  members
+}: {
+  currentId: string;
+  members: Array<{ id: string; name: string }>;
+}) {
+  const stack = buildSupersetStack(members, currentId);
+  if (stack.length === 0) return null;
+
+  const currentName = stack.find((item) => item.slot === 0)?.name ?? "";
+  const gap = 4;
+  const tops: number[] = [];
+  let offset = 0;
+  for (let slot = 0; slot < stack.length; slot += 1) {
+    tops[slot] = offset;
+    offset += supersetSlotHeight(slot, currentName) + gap;
+  }
+  const totalHeight = offset - gap;
+
+  return (
+    <div
+      className="superset-carousel"
+      role="group"
+      aria-label="Superset exercises"
+      style={{ height: `${totalHeight}px` }}
+    >
+      <div className="superset-carousel-stack">
+        {stack.map((item) => (
+          <span
+            key={item.id}
+            className={`superset-carousel-item is-slot-${Math.min(item.slot, 2)}`}
+            data-slot={item.slot}
+            aria-current={item.slot === 0 ? "true" : undefined}
+            style={{
+              height: `${supersetSlotHeight(item.slot, currentName)}px`,
+              top: `${tops[item.slot]}px`
+            }}
+          >
+            {item.name}
+          </span>
+        ))}
+      </div>
+      <span
+        key={currentId}
+        className="superset-carousel-arrow"
+        style={{ top: `${tops[1] - gap / 2 - 8}px` }}
+        aria-hidden="true"
+      >
+        <RefreshCw data-testid="superset-arrow" size={16} strokeWidth={3} />
+      </span>
+    </div>
+  );
+}
+
+export function suggestExercises<T extends Pick<ApiExercise, "name">>(
+  known: T[],
+  draftNames: string[],
+  query: string,
+  limit = 12
+) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const taken = new Set(draftNames.map((name) => name.trim().toLowerCase()));
+
+  return known
+    .filter((exercise) => {
+      const normalizedName = exercise.name.trim().toLowerCase();
+      return (
+        !taken.has(normalizedName) &&
+        (normalizedQuery === "" || normalizedName.includes(normalizedQuery))
+      );
+    })
+    .slice(0, limit);
+}
+
 // ---- Progress calendar & trend helpers (PLS-26/27/28/29) ----
 
 export type DailyVolumeTotal = {
@@ -1767,6 +1894,9 @@ function App() {
     readWeightIncrementStep()
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [knownExercises, setKnownExercises] = useState<ApiExercise[]>([]);
+  const [settingsExerciseName, setSettingsExerciseName] = useState("");
+  const [settingsExerciseMessage, setSettingsExerciseMessage] = useState("");
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState("");
@@ -1774,6 +1904,7 @@ function App() {
   const [progressMonthCursor, setProgressMonthCursor] = useState(() => startOfMonth(new Date()));
   const [progressTrendMode, setProgressTrendMode] = useState<"month" | "quarter">("month");
   const [progressSelectedDay, setProgressSelectedDay] = useState<CalendarDayCell | null>(null);
+  const [progressSessionMessage, setProgressSessionMessage] = useState("");
   const progressRangeStart = useMemo(
     () => addMonths(startOfMonth(new Date()), -2),
     []
@@ -1782,6 +1913,48 @@ function App() {
     () => groupSessionsByDay(progressSessions),
     [progressSessions]
   );
+
+  async function loadKnownExercises() {
+    try {
+      setKnownExercises(await apiRequest<ApiExercise[]>("/exercises"));
+    } catch {
+      // Suggestions are a convenience; typing a name by hand still works.
+    }
+  }
+
+  function openSettings() {
+    setSettingsExerciseName("");
+    setSettingsExerciseMessage("");
+    setIsSettingsOpen(true);
+    void loadKnownExercises();
+  }
+
+  async function handleCreateExerciseFromSettings() {
+    const name = settingsExerciseName.trim();
+    if (!name) return;
+
+    const alreadyExists = knownExercises.some(
+      (exercise) => exercise.name.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (alreadyExists) {
+      setSettingsExerciseMessage(`"${name}" already exists`);
+      return;
+    }
+
+    try {
+      await apiRequest<ApiExercise>("/exercises", {
+        body: JSON.stringify({ name }),
+        method: "POST"
+      });
+      setSettingsExerciseName("");
+      setSettingsExerciseMessage(`Added "${name}"`);
+      await loadKnownExercises();
+    } catch (error) {
+      setSettingsExerciseMessage(
+        error instanceof Error ? error.message : "Could not add exercise"
+      );
+    }
+  }
 
   async function openProgress() {
     setIsProgressOpen(true);
@@ -1802,6 +1975,28 @@ function App() {
     }
   }
 
+  async function openProgressSessionStats(summary: ApiWorkoutSessionSummary) {
+    setProgressSessionMessage("");
+
+    try {
+      const history = await apiRequest<ApiWorkoutSession[]>(
+        `/training-options/${summary.workoutSetId}/history`
+      );
+      const session = history.find((entry) => entry.id === summary.id);
+
+      if (!session) {
+        setProgressSessionMessage("Could not load the results of this workout");
+        return;
+      }
+
+      viewPastSessionStats(session, buildWorkoutSetFromSession(session), history);
+    } catch (error) {
+      setProgressSessionMessage(
+        error instanceof Error ? error.message : "Could not load the results of this workout"
+      );
+    }
+  }
+
   function closeProgress() {
     setIsProgressOpen(false);
     setProgressSelectedDay(null);
@@ -1810,6 +2005,7 @@ function App() {
   function changeProgressMonth(delta: number) {
     setProgressMonthCursor((previous) => addMonths(previous, delta));
     setProgressSelectedDay(null);
+    setProgressSessionMessage("");
   }
 
   function toggleRestTimerEnabled() {
@@ -1868,6 +2064,7 @@ function App() {
     setIsSettingsOpen(false);
     setIsProgressOpen(false);
     setProgressSessions([]);
+    setKnownExercises([]);
     await refreshMuscleGroups();
   }
 
@@ -1929,6 +2126,7 @@ function App() {
     setIsSettingsOpen(false);
     setIsProgressOpen(false);
     setProgressSessions([]);
+    setKnownExercises([]);
   }
 
   const localAllMuscleGroups = useMemo(
@@ -2464,6 +2662,16 @@ function App() {
   function openCreateOptionDialog() {
     resetWorkoutOptionDraft();
     setIsOptionDialogOpen(true);
+    void loadKnownExercises();
+  }
+
+  function handleAddExistingExercise(name: string) {
+    setNewWorkoutExercises((exercises) =>
+      exercises.some((exercise) => exercise.name.toLowerCase() === name.toLowerCase())
+        ? exercises
+        : [...exercises, { name, supersetGroup: null }]
+    );
+    setNewExerciseName("");
   }
 
   function openEditOptionDialog(workoutSet: WorkoutSet) {
@@ -2478,6 +2686,7 @@ function App() {
     setSelectedDraftNames([]);
     setEditingWorkoutSetId(workoutSet.id);
     setIsOptionDialogOpen(true);
+    void loadKnownExercises();
   }
 
   function closeOptionDialog() {
@@ -2893,6 +3102,7 @@ function App() {
         setIsOptionDialogOpen(false);
         resetWorkoutOptionDraft();
         setApiError("");
+        void loadKnownExercises();
         return;
       } catch (error) {
         setApiError(
@@ -3295,6 +3505,12 @@ function App() {
                 (exercise) => exercise.supersetGroup === activeExercise.supersetGroup
               )
             : undefined;
+        const supersetMembers =
+          activeExercise.supersetGroup != null && activeWorkoutSet
+            ? activeWorkoutSet.exercises.filter(
+                (exercise) => exercise.supersetGroup === activeExercise.supersetGroup
+              )
+            : [];
         const isLastInSupersetRound =
           !hasSupersetPartnerNext &&
           Boolean(firstGroupMember) &&
@@ -3316,7 +3532,17 @@ function App() {
               </button>
               <div>
                 <p className="eyebrow">Record set</p>
-                <h1>{activeExercise.name}</h1>
+                {supersetMembers.length > 1 ? (
+                  <>
+                    <h1 className="sr-only">{activeExercise.name}</h1>
+                    <SupersetCarousel
+                      currentId={activeExercise.id}
+                      members={supersetMembers}
+                    />
+                  </>
+                ) : (
+                  <h1>{activeExercise.name}</h1>
+                )}
               </div>
             </section>
 
@@ -3892,6 +4118,31 @@ function App() {
                     <Plus size={22} strokeWidth={3} />
                   </button>
                 </div>
+                {(() => {
+                  const suggestions = suggestExercises(
+                    knownExercises,
+                    newWorkoutExercises.map((exercise) => exercise.name),
+                    newExerciseName.split(",").pop() ?? ""
+                  );
+
+                  return suggestions.length > 0 ? (
+                    <div className="exercise-suggestions">
+                      <span>Your exercises</span>
+                      <div>
+                        {suggestions.map((exercise) => (
+                          <button
+                            key={exercise.id}
+                            type="button"
+                            aria-label={`Add existing exercise ${exercise.name}`}
+                            onClick={() => handleAddExistingExercise(exercise.name)}
+                          >
+                            {exercise.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="exercise-draft-list">
                   {newWorkoutExercises.length > 0 ? (
                     newWorkoutExercises.map((exercise) => {
@@ -4107,7 +4358,10 @@ function App() {
                             : undefined
                         }
                         disabled={day.count === 0}
-                        onClick={() => setProgressSelectedDay(day)}
+                        onClick={() => {
+                          setProgressSelectedDay(day);
+                          setProgressSessionMessage("");
+                        }}
                       >
                         {day.date.getDate()}
                       </button>
@@ -4135,6 +4389,35 @@ function App() {
                     {progressSelectedDay.count === 1 ? "" : "s"} ·{" "}
                     {formatVolume(progressSelectedDay.volume)}
                   </span>
+                  <ul className="progress-day-sessions">
+                    {progressSessions
+                      .filter(
+                        (session) =>
+                          localDateKey(session.completedAt) === progressSelectedDay.dateKey
+                      )
+                      .sort((a, b) => a.completedAt.localeCompare(b.completedAt))
+                      .map((session) => (
+                        <li key={session.id}>
+                          <button
+                            type="button"
+                            aria-label={`Open results: ${session.muscleGroupName} ${session.workoutSetName}`}
+                            onClick={() => void openProgressSessionStats(session)}
+                          >
+                            <span className="progress-day-session-main">
+                              <b>{session.muscleGroupName || "Workout"}</b>
+                              <small>{session.workoutSetName}</small>
+                            </span>
+                            <span className="progress-day-session-stats">
+                              {session.totalSets} sets · {formatVolume(session.totalVolume)}
+                            </span>
+                            <ChevronRight size={16} strokeWidth={3} aria-hidden="true" />
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  {progressSessionMessage ? (
+                    <p className="progress-day-message">{progressSessionMessage}</p>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -4311,6 +4594,46 @@ function App() {
             </div>
           </div>
 
+          <div className="settings-exercises">
+            <strong>Exercises</strong>
+            <small>Add an exercise to reuse in any training option</small>
+            <div className="settings-exercise-form">
+              <input
+                aria-label="New exercise name"
+                placeholder="Exercise name"
+                value={settingsExerciseName}
+                onChange={(event) => {
+                  setSettingsExerciseName(event.target.value);
+                  setSettingsExerciseMessage("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleCreateExerciseFromSettings();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                aria-label="Add exercise"
+                disabled={!settingsExerciseName.trim()}
+                onClick={() => void handleCreateExerciseFromSettings()}
+              >
+                <Plus size={18} strokeWidth={3} />
+              </button>
+            </div>
+            {settingsExerciseMessage ? (
+              <p className="settings-exercise-message">{settingsExerciseMessage}</p>
+            ) : null}
+            {knownExercises.length > 0 ? (
+              <ul className="settings-exercise-list" aria-label="Your exercises">
+                {knownExercises.map((exercise) => (
+                  <li key={exercise.id}>{exercise.name}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
           <button
             className="settings-logout-button"
             type="button"
@@ -4346,7 +4669,7 @@ function App() {
             className="settings-button"
             type="button"
             aria-label="Open settings"
-            onClick={() => setIsSettingsOpen(true)}
+            onClick={openSettings}
           >
             <Settings size={22} strokeWidth={3} />
           </button>

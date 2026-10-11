@@ -83,6 +83,9 @@ class WorkoutSessionSummaryTests {
         List<Map<String, Object>> sessions = JsonPath.read(response, "$");
 
         assertThat(sessions).hasSize(1);
+        assertThat(stringValue(sessions.getFirst(), "muscleGroupName")).isEqualTo(stringValue(chest, "name"));
+        assertThat(stringValue(sessions.getFirst(), "muscleGroupId")).isEqualTo(muscleGroupId);
+        assertThat(stringValue(sessions.getFirst(), "workoutSetId")).isEqualTo(optionId);
         assertThat(new java.math.BigDecimal(stringValue(sessions.getFirst(), "totalVolume")))
             .isEqualByComparingTo("560");
     }

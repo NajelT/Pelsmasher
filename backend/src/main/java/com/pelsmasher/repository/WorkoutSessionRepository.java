@@ -15,7 +15,7 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSessionEn
         String trainingOptionId
     );
 
-    @EntityGraph(attributePaths = {"loggedSets"})
+    @EntityGraph(attributePaths = {"loggedSets", "muscleGroup"})
     List<WorkoutSessionEntity> findByUserIdAndCompletedAtAfterOrderByCompletedAtDesc(
         String userId,
         Instant since

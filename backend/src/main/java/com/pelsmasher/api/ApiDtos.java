@@ -91,6 +91,11 @@ public final class ApiDtos {
     ) {
     }
 
+    public record CreateExerciseRequest(
+        @NotBlank String name
+    ) {
+    }
+
     public record CreateTrainingOptionRequest(
         @NotBlank String muscleGroupId,
         @NotBlank String name,
@@ -194,7 +199,10 @@ public final class ApiDtos {
 
     public record WorkoutSessionSummaryResponse(
         String id,
+        String workoutSetId,
         String workoutSetName,
+        String muscleGroupId,
+        String muscleGroupName,
         Instant completedAt,
         int totalSets,
         BigDecimal totalVolume

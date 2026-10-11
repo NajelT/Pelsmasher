@@ -16,8 +16,11 @@ function session(
   return {
     completedAt,
     id,
+    muscleGroupId: "group-1",
+    muscleGroupName: "Chest",
     totalSets: 1,
     totalVolume,
+    workoutSetId: "option-1",
     workoutSetName: "Test option"
   };
 }

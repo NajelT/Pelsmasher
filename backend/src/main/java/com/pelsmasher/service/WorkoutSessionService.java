@@ -153,7 +153,10 @@ public class WorkoutSessionService {
     private WorkoutSessionSummaryResponse toSummaryResponse(WorkoutSessionEntity session) {
         return new WorkoutSessionSummaryResponse(
             session.getId(),
+            session.getTrainingOptionId(),
             session.getTrainingOptionName(),
+            session.getMuscleGroupId(),
+            session.getMuscleGroup() == null ? "" : session.getMuscleGroup().getName(),
             session.getCompletedAt(),
             session.getTotalSets(),
             sessionVolume(session)
