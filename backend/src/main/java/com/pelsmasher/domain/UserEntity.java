@@ -7,6 +7,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Locale;
 
 @Entity
 @Table(name = "users")
@@ -52,11 +53,11 @@ public class UserEntity {
     }
 
     public static String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     public static String normalizeUsername(String username) {
-        return username.trim().toLowerCase();
+        return username.trim().toLowerCase(Locale.ROOT);
     }
 
     @PrePersist
